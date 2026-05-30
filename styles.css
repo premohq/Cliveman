@@ -230,3 +230,72 @@ body:not(.game-started) .pause-btn{display:none;}
   #pauseModal .pause-title{font-size:22px;}
   #pauseModal .pm-btn{font-size:18px;padding:12px;}
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LANDSCAPE PHONE FIXES
+   Short, wide touch viewports (a phone held sideways) previously fell through
+   the cracks: too wide for the width-based mobile rules to fully tame, too
+   short for desktop spacing to fit. Result: oversized text and a cramped,
+   barely-playable nav mode. These rules target short touch viewports only
+   (height <= 500px + coarse pointer) so desktop and portrait are untouched.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-height:500px) and (orientation:landscape){
+
+  /* Shrink everything text-wise so prose fits a short viewport */
+  html,body{font-size:14px;}
+  .header{font-size:11px;padding-bottom:3px;margin-bottom:4px;}
+  .line{margin-bottom:3px;line-height:1.2;}
+  #screen{font-size:14px;line-height:1.2;padding-bottom:4px;}
+  .terminal{padding:0 14px;}
+  .crt{padding:6px 0;}
+
+  /* Choice / continue buttons: compact so they don't dominate the screen */
+  .choice-btn{font-size:13px;padding:6px 12px;min-height:34px;min-width:64px;}
+  #choicePanel{gap:6px;padding:5px 6px;margin-top:3px;}
+  .press-continue{font-size:13px;}
+
+  /* ── NAV MODE in landscape ──
+     Lay the 3D viewport and the controls side-by-side instead of stacked, so
+     the canvas can use the full (short) height and the buttons sit beside it
+     rather than being pushed off-screen. */
+  body.nav-mode .terminal{padding:0 8px;}
+
+  /* The map/viewport area: let it size by height, not a vh cap that goes tiny */
+  body.nav-mode #mapArea{
+    max-height:none;
+    padding:2px 0 2px 0;
+    margin-bottom:2px;
+    border-bottom:none;
+    overflow:visible;
+  }
+  /* Canvas: fill the available short height, keep aspect via contain */
+  body.nav-mode .fp-canvas{
+    max-height:54vh;
+    max-width:88vw;
+    width:auto;
+  }
+  body.nav-mode .fp-wrap{gap:2px;padding:0;}
+  .fp-title{font-size:13px;letter-spacing:1px;}
+  .fp-status{font-size:11px;line-height:1.1;}
+
+  /* Empty story area collapses in nav mode so it doesn't add a dead gap */
+  body.nav-mode #screen{flex:0 0 auto;min-height:0;max-height:0;padding:0;overflow:hidden;}
+
+  /* The on-screen nav buttons: compact, single row, right under the viewport */
+  body.nav-mode #mobileNav{
+    gap:5px;padding:4px 4px;margin-top:2px;
+    flex-wrap:nowrap;
+  }
+  .mobile-btn{font-size:13px;padding:6px 12px;min-width:56px;min-height:38px;}
+
+  /* Hint line under the buttons: shrink it */
+  #cmdList{font-size:11px;padding:3px 4px;margin-top:2px;}
+}
+
+/* Very short landscape (small phones): trim a little more so nothing clips */
+@media (max-height:380px) and (orientation:landscape){
+  html,body{font-size:12px;}
+  body.nav-mode .fp-canvas{max-height:48vh;}
+  .mobile-btn{min-height:34px;padding:5px 10px;font-size:12px;}
+  .fp-status{font-size:10px;}
+}
