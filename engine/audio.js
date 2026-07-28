@@ -1,20 +1,26 @@
 /* ========================================================================
-   CLIVEMAN 3.1  -  js/03-audio.js
-   WebAudio sound engine + procedural multi-track music.
+   CLIVEMAN  -  engine/audio.js
+   WebAudio SFX engine + the bridge into the classical music engine.
 
    Exposes:
      ensureAudio()                  - lazily create / resume the AudioContext
      beep / playKeyClick / etc.     - UI sound effects
      setMuted(bool) / toggleMute()  - global mute (silences SFX + music)
      isMuted()                      - current mute state
-     playMusic('trackName')         - start / crossfade to a procedural track
-     stopMusic()                    - fade the current track out
+     playMusic('trackName')         - start music for a scene mood
+     stopMusic()                    - fade the current music out
 
-   Music tracks (each a distinct mood, all pure WebAudio - no files):
-     'title'       - slow noir jazz, walking bass + muted trumpet (title screen)
-     'investigate' - tense, sparse, ticking pulse                 (Ch.1 / Ch.2 investigation)
-     'lonely'      - warm, slow, melancholy                       (Pete's Subs scene)
-     'descent'     - dark, dissonant, unstable                    (after Bevan dies, Ch.3)
+   Music: the actual notes are performed by engine/music-classical.js
+   (window.ClassicalMusic). The historical track names below survive as
+   scene moods, mapped to that engine's 0..1 "tension" dial:
+     'title'       - calm    (title screen)
+     'investigate' - mid     (Ch.1 / Ch.2 investigation)
+     'lonely'      - mid     (Pete's Subs scene)
+     'descent'     - tense   (after Bevan dies, Ch.3)
+
+   The Easter-egg credits song ships as assets/easteregg.mp3 and is wired
+   into the #easterEggAudio element below; playFinaleEasterEgg() in
+   story/ch3.js plays it.
 
    NOTE: classic scripts sharing one global scope. Load order in
    index.html is significant - do not reorder these <script> tags.
@@ -29,25 +35,66 @@ function ensureAudio(){
   if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
 }
 
+/* ── Master bus ─────────────────────────────────────────────────
+   Every sound the game makes - UI beeps, stings, transition hits, the
+   classical music engine, the finale static, the drive minigame's engine
+   drone - connects HERE rather than straight to audioCtx.destination.
+
+   Before this existed each subsystem owned its own path to the speakers and
+   agreed to honour mute purely by convention; two of them (the finale static
+   and the Buick's engine) never got the memo, and the drive bundle spun up a
+   SECOND AudioContext entirely. One node means one place to mute, one place
+   to set volume, and no subsystem can quietly opt out of either.
+
+   Cross-module access is via window.audioBus() - the drive bundle is a
+   separate esbuild scope and can't see this file's locals. */
+let _bus=null;
+let _vol=1;
+function audioBus(){
+  if(!audioCtx)ensureAudio();
+  if(!audioCtx)return null;
+  if(!_bus||_bus.context!==audioCtx){
+    try{
+      _bus=audioCtx.createGain();
+      _bus.gain.value=_muted?0.0001:Math.max(0.0001,_vol);
+      _bus.connect(audioCtx.destination);
+    }catch(e){_bus=null;}
+  }
+  return _bus;
+}
+/* Short exponential ramp rather than a hard cut: muting mid-chord used to
+   clip. 80ms is inaudible as a fade but long enough to kill the click. */
+function _busRamp(){
+  if(!_bus||!audioCtx)return;
+  try{
+    var t=audioCtx.currentTime;
+    var target=_muted?0.0001:Math.max(0.0001,_vol);
+    _bus.gain.cancelScheduledValues(t);
+    _bus.gain.setValueAtTime(Math.max(0.0001,_bus.gain.value),t);
+    _bus.gain.exponentialRampToValueAtTime(target,t+0.08);
+  }catch(e){}
+}
+function setVolume(v){
+  _vol=Math.max(0,Math.min(1,typeof v==='number'?v:1));
+  _busRamp();
+  return _vol;
+}
+function getVolume(){return _vol;}
+
 /* ── Global mute ─────────────────────────────────────────────────────────
-   _muted gates every sound: UI beeps AND music. The music engine also
-   reads _muted live so a mute mid-track silences it immediately. */
+   _muted gates every sound. SFX check it before playing; the classical
+   music engine reads it live inside its scheduler loop, so a mute
+   mid-piece falls silent within a fraction of a second. */
 let _muted=false;
 function isMuted(){return _muted;}
 function setMuted(on){
   _muted=!!on;
-  if(_music&&_music.master&&audioCtx){
-    try{
-      _music.master.gain.cancelScheduledValues(audioCtx.currentTime);
-      _music.master.gain.setValueAtTime(_music.master.gain.value,audioCtx.currentTime);
-      _music.master.gain.exponentialRampToValueAtTime(
-        _muted?0.0001:(_music.vol||0.3), audioCtx.currentTime+0.3);
-    }catch(e){}
-  }
+  _busRamp();   /* catches anything already scheduled on the bus */
   if(window._onMuteChanged)try{window._onMuteChanged(_muted);}catch(e){}
 }
 function toggleMute(){setMuted(!_muted);return _muted;}
 
+/* ── UI sound effects ── */
 function beep(freq,dur,vol,type){
   if(!audioCtx||_muted)return;
   try{
@@ -56,11 +103,12 @@ function beep(freq,dur,vol,type){
     osc.type=type||'square';
     osc.frequency.value=freq+(Math.random()*40-20);
     gain.gain.value=vol;
-    osc.connect(gain);gain.connect(audioCtx.destination);
+    osc.connect(gain);gain.connect(audioBus()||audioCtx.destination);
     const t=audioCtx.currentTime;
     osc.start(t);
     gain.gain.exponentialRampToValueAtTime(0.0001,t+dur);
     osc.stop(t+dur+0.01);
+    osc.onended=function(){try{osc.disconnect();gain.disconnect();}catch(e){}};
   }catch(e){}
 }
 function playKeyClick(){beep(1100,0.018,0.05,'square');}
@@ -74,209 +122,32 @@ function playCharClick(ch){
 function playMoveBlip(){beep(620,0.025,0.04,'square');}
 function playEngine(){beep(140+Math.random()*30,0.12,0.05,'sawtooth');}
 
-
-/* ========================================================================
-   PROCEDURAL MUSIC ENGINE  -  multiple tracks, one at a time
-   Each track schedules itself one bar ahead and loops. playMusic() will
-   crossfade out whatever is playing and start the requested track.
-   ======================================================================== */
-let _music=null;       /* currently-playing track object */
-let _musicName=null;   /* its name, so re-requesting the same track is a no-op */
-
-/* note frequency tables (Hz) - C natural minor across octaves */
-const _SCALE={
-  bassLow:[65.41,73.42,77.78,87.31,98.00,103.83,116.54,130.81],
-  mid:    [130.81,146.83,155.56,174.61,196.00,207.65,233.08,261.63],
-  lead:   [261.63,293.66,311.13,349.23,392.00,415.30,466.16,523.25]
-};
-
-/* ── small synth voices shared by the tracks ── */
-function _mkBass(freq,t,dst,step,vol){
-  const o=audioCtx.createOscillator(),g=audioCtx.createGain(),lp=audioCtx.createBiquadFilter();
-  lp.type='lowpass';lp.frequency.value=420;
-  o.type='triangle';
-  o.frequency.setValueAtTime(freq,t);
-  o.frequency.exponentialRampToValueAtTime(freq*1.01,t+0.04);
-  g.gain.setValueAtTime(0.0001,t);
-  g.gain.exponentialRampToValueAtTime(vol||0.5,t+0.03);
-  g.gain.exponentialRampToValueAtTime(0.0001,t+step*0.95);
-  o.connect(lp);lp.connect(g);g.connect(dst);
-  o.start(t);o.stop(t+step);
-}
-function _mkLead(freq,t,dst,step,hold,vol,wave){
-  const bp=audioCtx.createBiquadFilter();
-  bp.type='bandpass';bp.frequency.value=freq*2;bp.Q.value=5;
-  const g=audioCtx.createGain();
-  g.gain.setValueAtTime(0.0001,t);
-  g.gain.exponentialRampToValueAtTime(vol||0.16,t+0.12);
-  g.gain.setValueAtTime(vol||0.16,t+step*hold);
-  g.gain.exponentialRampToValueAtTime(0.0001,t+step*(hold+1.2));
-  bp.connect(g);g.connect(dst);
-  [0,1].forEach(function(d){
-    const o=audioCtx.createOscillator();
-    o.type=wave||'sawtooth';
-    o.frequency.setValueAtTime(freq*(1+d*0.006),t);
-    o.connect(bp);
-    o.start(t);o.stop(t+step*(hold+1.4));
-  });
-}
-function _mkBrush(t,dst,accent,bright){
-  const len=0.18;
-  const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*len,audioCtx.sampleRate);
-  const d=buf.getChannelData(0);
-  for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);
-  const src=audioCtx.createBufferSource();src.buffer=buf;
-  const hp=audioCtx.createBiquadFilter();
-  hp.type='highpass';hp.frequency.value=bright||5200;
-  const g=audioCtx.createGain();
-  g.gain.value=accent?0.06:0.028;
-  src.connect(hp);hp.connect(g);g.connect(dst);
-  src.start(t);
-}
-function _mkPad(freq,t,dst,dur,vol){
-  const o=audioCtx.createOscillator(),g=audioCtx.createGain(),lp=audioCtx.createBiquadFilter();
-  lp.type='lowpass';lp.frequency.value=900;
-  o.type='sawtooth';o.frequency.value=freq;
-  g.gain.setValueAtTime(0.0001,t);
-  g.gain.exponentialRampToValueAtTime(vol||0.06,t+dur*0.4);
-  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-  o.connect(lp);lp.connect(g);g.connect(dst);
-  o.start(t);o.stop(t+dur+0.05);
-}
-function _mkTick(t,dst,vol){
-  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-  o.type='square';o.frequency.value=1700+Math.random()*60;
-  g.gain.setValueAtTime(vol||0.04,t);
-  g.gain.exponentialRampToValueAtTime(0.0001,t+0.03);
-  o.connect(g);g.connect(dst);
-  o.start(t);o.stop(t+0.05);
-}
-
-/* ── track definitions ──
-   Each returns {step, vol, bar(master,base,step)} where bar() schedules
-   one 16-step bar starting at audioCtx.currentTime + small lookahead. */
-const _TRACKS={
-
-  /* TITLE - slow noir jazz, walking bass + sparse muted trumpet */
-  title:function(){
-    const B=_SCALE.bassLow,L=_SCALE.lead;
-    const bass=[0,2,4,2, 5,4,2,0, 3,4,5,4, 6,5,4,2];
-    const lead=[4,-1,-1,2, -1,-1,5,-1, -1,4,-1,-1, 6,-1,5,-1];
-    return {step:0.34,vol:0.32,bar:function(master,base,step){
-      for(let s=0;s<16;s++){
-        const t=base+s*step;
-        _mkBass(B[bass[s]],t,master,step,0.5);
-        if(lead[s]>=0)_mkLead(L[lead[s]],t,master,step,1.4,0.16);
-        if(s%2===0)_mkBrush(t,master,s%8===0);
-      }
-    }};
-  },
-
-  /* INVESTIGATE - tense and sparse, a steady ticking pulse under low stabs */
-  investigate:function(){
-    const B=_SCALE.bassLow,M=_SCALE.mid;
-    const bass=[0,-1,-1,-1, 3,-1,-1,-1, 2,-1,-1,-1, 4,-1,-1,-1];
-    const stab=[-1,-1,4,-1, -1,-1,-1,-1, -1,-1,2,-1, -1,-1,-1,5];
-    return {step:0.30,vol:0.26,bar:function(master,base,step){
-      for(let s=0;s<16;s++){
-        const t=base+s*step;
-        if(bass[s]>=0)_mkBass(B[bass[s]],t,master,step*3,0.42);
-        if(stab[s]>=0)_mkLead(M[stab[s]],t,master,step,0.6,0.10,'square');
-        _mkTick(t,master,s%4===0?0.05:0.028);
-      }
-    }};
-  },
-
-  /* LONELY - warm, slow, melancholy: soft pad + a tender high line */
-  lonely:function(){
-    const B=_SCALE.bassLow,L=_SCALE.lead,M=_SCALE.mid;
-    const bass=[0,-1,-1,-1, -1,-1,-1,-1, 5,-1,-1,-1, -1,-1,-1,-1];
-    const line=[-1,-1,4,-1, -1,2,-1,-1, -1,-1,5,-1, -1,4,-1,-1];
-    return {step:0.40,vol:0.30,bar:function(master,base,step){
-      _mkPad(M[0],base,master,step*16,0.07);
-      for(let s=0;s<16;s++){
-        const t=base+s*step;
-        if(bass[s]>=0)_mkBass(B[bass[s]],t,master,step*7,0.40);
-        if(line[s]>=0)_mkLead(L[line[s]],t,master,step,2.0,0.13,'triangle');
-      }
-    }};
-  },
-
-  /* DESCENT - dark and unstable: detuned drone, dissonant stabs, no pulse */
-  descent:function(){
-    const B=_SCALE.bassLow,M=_SCALE.mid;
-    const stab=[3,-1,-1,6, -1,-1,1,-1, -1,4,-1,-1, 7,-1,-1,2];
-    return {step:0.36,vol:0.27,bar:function(master,base,step){
-      _mkPad(B[0]*0.999,base,master,step*16,0.075);
-      _mkPad(B[0]*1.012,base,master,step*16,0.05);
-      for(let s=0;s<16;s++){
-        const t=base+s*step;
-        if(stab[s]>=0)_mkLead(M[stab[s]]*(1+(Math.random()*0.03-0.015)),t,master,step,0.8,0.11,'sawtooth');
-        if(s%8===5)_mkBrush(t,master,true,2200);
-      }
-    }};
-  }
-};
-
-/* ── playMusic / stopMusic ── */
+/* ── playMusic / stopMusic ──
+   Scene mood -> tension bridge into window.ClassicalMusic. Every call
+   site in the story scripts still says playMusic('investigate') etc.,
+   so nothing outside this file knows or cares which engine performs. */
+let _music=null;       /* truthy while music is meant to be playing */
+let _musicName=null;   /* current mood name, for the first-gesture kick */
+var _MUSIC_TENSION={title:0.18, investigate:0.5, lonely:0.62, descent:0.92};
 function playMusic(name){
   ensureAudio();
-  if(!audioCtx)return;
-  if(!_TRACKS[name])return;
-  if(_musicName===name&&_music&&!_music.stopped)return; /* already playing it */
-
-  stopMusic(); /* fade out whatever is currently playing */
-
-  const def=_TRACKS[name]();
-  const master=audioCtx.createGain();
-  master.gain.value=0.0001;
-  const tone=audioCtx.createBiquadFilter();
-  tone.type='lowpass';tone.frequency.value=2600;tone.Q.value=0.4;
-  master.connect(tone);
-  tone.connect(audioCtx.destination);
-
-  const targetVol=def.vol||0.3;
-  master.gain.exponentialRampToValueAtTime(
-    _muted?0.0001:targetVol, audioCtx.currentTime+2.0);
-
-  const track={master:master,tone:tone,timer:null,stopped:false,vol:targetVol,def:def};
-  _music=track;
-  _musicName=name;
-
-  function loop(){
-    if(!track||track.stopped)return;
-    const base=audioCtx.currentTime+0.06;
-    def.bar(master,base,def.step);
-    track.timer=setTimeout(loop,def.step*16*1000);
+  _musicName=name; _music={stopped:false};   /* keep the first-gesture kick happy */
+  if(window.ClassicalMusic){
+    if(window.ClassicalMusic.setContext){ window.ClassicalMusic.setContext(name); }
+    else { var ten=_MUSIC_TENSION[name]; if(ten==null)ten=0.4; window.ClassicalMusic.setTension(ten); }
+    window.ClassicalMusic.start();
   }
-  loop();
 }
-
 function stopMusic(){
-  if(!_music)return;
-  const dead=_music;
-  dead.stopped=true;
-  if(dead.timer)clearTimeout(dead.timer);
-  _music=null;
-  _musicName=null;
-  if(audioCtx){
-    try{
-      dead.master.gain.cancelScheduledValues(audioCtx.currentTime);
-      dead.master.gain.setValueAtTime(dead.master.gain.value,audioCtx.currentTime);
-      dead.master.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+1.0);
-    }catch(e){}
-  }
-  setTimeout(function(){
-    try{dead.master.disconnect();dead.tone.disconnect();}catch(e){}
-  },1300);
+  _music=null; _musicName=null;
+  if(window.ClassicalMusic)window.ClassicalMusic.stop();
 }
 
 /* ── back-compat shims ──
    Earlier code called startNoirMusic()/stopNoirMusic(). Keep those working
-   so nothing else breaks; they now map onto the title track. */
+   so nothing else breaks; they now map onto the title mood. */
 function startNoirMusic(){playMusic('title');}
 function stopNoirMusic(){stopMusic();}
-
 
 /* WebAudio needs a user gesture before it will produce sound. Music may be
    requested (e.g. the title track) before any click, so the context can
@@ -300,3 +171,31 @@ function stopNoirMusic(){stopMusic();}
   window.addEventListener('keydown',kick,true);
   window.addEventListener('touchstart',kick,true);
 })();
+
+/* ── Easter-egg credits audio ──
+   The secret crew-credits song lives at assets/easteregg.mp3
+   (64 kbps MPEG layer III, 44.1 kHz stereo). Wire it into the
+   #easterEggAudio element; story/ch3.js -> playFinaleEasterEgg() plays it.
+   The src is only a path - the browser doesn't fetch a byte of it until
+   the egg is actually triggered. */
+(function(){
+  function wire(){
+    var el = document.getElementById('easterEggAudio');
+    if(el && !el.src){ el.src = 'assets/easteregg.mp3'; }
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', wire);
+  } else {
+    wire();
+  }
+})();
+
+/* Cross-scope handles. window.audioBus is what stings / transitions / ch3 /
+   the drive bundle reach for; CMAUDIO is the tidy front door. */
+window.audioBus=audioBus;
+window.CMAUDIO={
+  ctx:function(){ensureAudio();return audioCtx;},
+  bus:audioBus,
+  setMuted:setMuted, isMuted:isMuted, toggleMute:toggleMute,
+  setVolume:setVolume, getVolume:getVolume
+};

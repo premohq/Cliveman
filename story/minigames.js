@@ -1,5 +1,5 @@
 /* ========================================================================
-   CLIVEMAN 3.1  -  js/14-minigames.js
+   CLIVEMAN  -  story/minigames.js
    Mini-games: blackjack, rock-paper-scissors combat, horse racing, snake.
 
    NOTE: classic scripts sharing one global scope. Load order in

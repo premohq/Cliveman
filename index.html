@@ -1,23 +1,823 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>Cliveman 3.1</title><link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='4' y='8' width='56' height='48' rx='4' fill='%23020a04' stroke='%2333ff66' stroke-width='3'/><text x='32' y='46' font-family='monospace' font-size='38' font-weight='bold' fill='%2333ff66' text-anchor='middle'>C</text></svg>"><link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css"></head><body><svg width="0" height="0" style="position:absolute"><defs><filter id="crtCurve"><feImage xlink:href="" /></filter></defs></svg><div id="crtPowerOn" class=""><div class="crtFlash"></div></div><div id="crtVignette"></div><div id="redVignette"></div><div id="boot"></div><div id="padToast"></div><div class="crt"><div class="terminal"><div class="header"><span>DUDLEY PD // CASE TERMINAL // CLIVEMAN.EXE</span><span><button id="pauseBtn" class="pause-btn" type="button">☰</button><button id="fsBtn" class="fs-btn" type="button">[ FULLSCREEN ]</button>
-SECURE LINK <span class="blink">█</span></span></div><div id="mapArea"></div><div id="screen"></div><div id="choicePanel"></div><div id="mobileNav"><button class="mobile-btn" id="navCheckBtn" type="button">C</button><button class="mobile-btn" id="navSaveBtn" type="button">SAV</button><button class="mobile-btn" id="navInvBtn" type="button">INV</button></div><div id="navRow"><div id="cmdList"></div><div id="desktopNav"><button class="desk-btn" id="deskCheckBtn" type="button">&#x1F50D; CHECK</button><div id="deskBtnGroup"><button class="desk-btn desk-btn-save" id="deskSaveBtn" type="button">&#x1F4BE; SAVE</button><button class="desk-btn" id="deskInvBtn" type="button">&#x1F392; INV</button></div><div id="deskPadGroup" style="display:none"></div><span id="padPrompt" class="pad-hint"></span></div></div><div id="inputRow" class="input-row" style="display:none"><span class="prompt">C:\DUDLEY&gt;</span><input id="cmd" autocomplete="off" spellcheck="false" autocapitalize="off" autofocus><span class="caret"></span></div></div></div><div id="finaleOverlay"><canvas id="fwCanvas"></canvas><div id="finaleNameWrap"><div id="finaleName"></div><div id="finaleSubtitle"></div></div><audio id="easterEggAudio" preload="auto" loop></audio><div id="staticOverlay"><canvas id="staticCanvas"></canvas><div id="signalLostText">信号丢失</div></div></div>  <script src="engine/anti-tamper.js"></script>
-  <script src="engine/i18n.js"></script>
-  <script src="engine/dom-refs.js"></script>
-  <script src="engine/audio.js"></script>
-<script src="engine/easter-egg-audio.js"></script>
-  <script src="engine/save-state.js"></script>
-  <script src="engine/ui-core.js"></script>
-  <script src="engine/prompts.js"></script>
-  <script src="engine/transitions.js"></script>
-  <script src="engine/raycaster.js"></script>
-  <script src="engine/controls-ui.js"></script>
-  <script src="engine/navigation.js"></script>
-  <script src="story/title.js"></script>
-  <script src="story/ch1.js"></script>
-  <script src="story/ch2.js"></script>
-  <script src="story/minigames.js"></script>
-  <script src="story/ch3.js"></script>
-  <script src="story/finale.js"></script>
-  <script src="engine/menus.js"></script>
-  <script src="engine/input-extras.js"></script>
-  <script src="engine/boot.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"><title>Cliveman</title><link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='4' y='8' width='56' height='48' rx='4' fill='%23020a04' stroke='%2333ff66' stroke-width='3'/><text x='32' y='46' font-family='monospace' font-size='38' font-weight='bold' fill='%2333ff66' text-anchor='middle'>C</text></svg>"><link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet"><style>
+:root{--green:#33ff66;--green-bright:#7dff9a;--green-dim:#1a8033;--green-dark:#062b10;--bg:#020a04;--amber:#ffb000;--red:#ff3333}*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%;background:var(--bg);color:var(--green);font-family:'VT323','Share Tech Mono',monospace;font-size:22px;overflow:hidden;-webkit-tap-highlight-color:transparent}.crt{position:fixed;inset:0;overflow:hidden;animation:flicker 0.15s infinite;display:flex;flex-direction:column;align-items:center;padding:20px 0;will-change:opacity;transform:translateZ(0);backface-visibility:hidden}.crt{text-shadow:0 0 4px var(--green),0 0 12px rgba(51,255,102,0.45)}.sharp,.sharp *{text-shadow:none !important;filter:none !important}.crt::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient( to bottom,rgba(0,0,0,0) 0px,rgba(0,0,0,0) 2px,rgba(0,0,0,0.22) 3px,rgba(0,0,0,0.22) 4px );pointer-events:none;z-index:5}.crt::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,0.85) 100%);pointer-events:none;z-index:6}@keyframes flicker{0%{opacity:0.97}50%{opacity:1}100%{opacity:0.98}}@keyframes bigflicker{0%,100%{opacity:1}50%{opacity:0.55}}@keyframes steadypulse{0%,100%{opacity:1}50%{opacity:0.75}}.terminal{width:100%;max-width:920px;height:100%;padding:0 28px;display:flex;flex-direction:column;z-index:4;overflow:hidden;min-height:0}.header{border-bottom:1px solid var(--green-dim);padding-bottom:6px;margin-bottom:10px;display:flex;justify-content:space-between;font-size:18px;color:var(--green-dim);flex-shrink:0}.header .blink{animation:blink 1s steps(1) infinite}@keyframes blink{50%{opacity:0}}
+@keyframes glitchJitter{0%{transform:translate(0,0)}20%{transform:translate(-1px,0.5px)}40%{transform:translate(1px,-0.5px)}60%{transform:translate(-0.5px,0)}80%{transform:translate(0.5px,0.5px)}100%{transform:translate(0,0)}}
+@keyframes deathGlitch{0%{transform:translate(0,0) scale(1);filter:none}10%{transform:translate(-8px,3px) scale(1.01);filter:hue-rotate(-30deg) saturate(1.6)}22%{transform:translate(10px,-4px) scale(0.99);filter:hue-rotate(20deg) contrast(1.4)}34%{transform:translate(-6px,5px) scale(1.015);filter:invert(0.15) saturate(2)}48%{transform:translate(7px,-2px) scale(1);filter:hue-rotate(-15deg)}62%{transform:translate(-4px,2px) scale(1.008);filter:contrast(1.3)}78%{transform:translate(3px,-3px) scale(1);filter:none}100%{transform:translate(0,0) scale(1);filter:none}}
+@keyframes redVignettePulse{0%{opacity:0}15%{opacity:0.95}45%{opacity:0.55}70%{opacity:0.8}100%{opacity:0.62}}.fs-btn{background:transparent;border:1px solid var(--green-dim);color:var(--green-dim);font-family:inherit;font-size:14px;padding:2px 10px;cursor:pointer;margin-right:10px;text-shadow:0 0 4px var(--green-dim);letter-spacing:1px}.fs-btn:hover{color:var(--amber);border-color:var(--amber);text-shadow:0 0 4px var(--amber);box-shadow:0 0 6px rgba(255,176,0,0.4)}:fullscreen .fs-btn::before{content:""}:fullscreen .fs-btn{color:var(--amber);border-color:var(--amber)}#mapArea{display:none;flex-shrink:0;text-align:center;padding:6px 0 10px 0;border-bottom:1px dashed var(--green-dim);margin-bottom:8px;max-height:55vh;overflow-y:auto;overflow-x:hidden}body.nav-mode #mapArea{display:block}.map-title{color:var(--amber);text-shadow:0 0 6px var(--amber);font-size:18px;margin-bottom:4px;letter-spacing:2px}.map-block{font-family:'Share Tech Mono',monospace;font-size:16px;line-height:1.0;color:#88ffaa;white-space:pre;display:inline-block;text-align:left;text-shadow:0 0 4px #33ff66,0 0 10px rgba(51,255,102,0.4)}.map-player{color:var(--amber);text-shadow:0 0 6px var(--amber),0 0 14px rgba(255,176,0,0.6);font-weight:bold}#screen{position:relative;flex:1 1 180px;min-height:120px;overflow-y:auto;overflow-x:hidden;padding-right:12px;padding-bottom:8px;white-space:pre-wrap;word-wrap:break-word;line-height:1.25;text-align:center;scroll-behavior:auto;contain:layout style;-webkit-overflow-scrolling:touch}#screen::-webkit-scrollbar{width:8px}#screen::-webkit-scrollbar-track{background:var(--green-dark)}#screen::-webkit-scrollbar-thumb{background:var(--green-dim)}.line{margin-bottom:6px}.dlg-adv{color:var(--amber);text-shadow:0 0 6px var(--amber);animation:blink 1s steps(1) infinite}.sys{color:var(--amber);text-shadow:0 0 4px var(--amber)}.err{color:var(--red);text-shadow:0 0 6px var(--red)}.dim{color:var(--green-dim)}.narration{color:#aaffaa}.speaker{color:var(--amber);text-shadow:0 0 6px var(--amber)}.ascii{font-family:'Share Tech Mono',monospace;font-size:16px;line-height:1.05;color:var(--green);white-space:pre;display:inline-block;text-align:left}.savebox{color:var(--amber);font-family:'Share Tech Mono',monospace;white-space:pre;display:inline-block;text-align:left;font-size:18px;text-shadow:0 0 4px var(--amber)}.city{font-family:'Share Tech Mono',monospace;font-size:16px;line-height:1.0;color:var(--green);white-space:pre;display:inline-block;text-align:left;text-shadow:0 0 4px var(--green),0 0 10px var(--green),0 0 22px rgba(51,255,102,0.75);filter:blur(0.6px)}
+#pixelCityBox{display:block;margin:0 auto;border:2px solid #0a1428;box-shadow:0 0 28px rgba(20,80,180,0.4),0 0 8px rgba(0,40,120,0.3);max-width:760px;width:calc(100% - 8px);height:200px;image-rendering:pixelated;image-rendering:crisp-edges;background:#020810;}
+@media(max-width:600px){#pixelCityBox{height:140px;}}.city .win{color:var(--amber);text-shadow:0 0 6px var(--amber),0 0 14px var(--amber),0 0 24px rgba(255,176,0,0.7)}.glitch{animation:glitchJitter 0.55s steps(2,end) infinite;position:relative;text-shadow:-1.6px 0 1px rgba(255,40,90,0.9),1.6px 0 1px rgba(40,210,255,0.9),0 0 5px rgba(180,255,200,0.45) !important}.press-continue{color:#ffffff;animation:steadypulse 1.4s ease-in-out infinite;letter-spacing:1px;text-shadow:none !important}.input-echo{color:var(--green-dim);text-shadow:none !important}.credits{color:var(--amber);text-shadow:none !important}.version{color:#66ccff;text-shadow:none !important}.car{font-family:'Share Tech Mono',monospace;font-size:18px;line-height:1.05;color:var(--amber);white-space:pre;display:inline-block;text-align:left;text-shadow:0 0 4px var(--amber),0 0 12px rgba(255,176,0,0.5)}#cmdList{display:none;flex-shrink:0;border-top:1px dashed var(--green-dim);padding:8px 10px 6px 10px;margin-top:6px;color:var(--green);font-size:18px;text-align:center;background:rgba(6,43,16,0.35)}body.nav-mode #cmdList{display:block}#cmdList .hint{color:var(--amber);text-shadow:0 0 4px var(--amber)}#cmdList .cmds{color:#aaffaa;margin-top:2px}.input-row{border-top:1px solid var(--green-dim);padding-top:8px;margin-top:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;gap:6px}.prompt{color:var(--amber);text-shadow:0 0 6px var(--amber);margin-right:8px}#cmd{flex:1;max-width:620px;background:transparent;border:none;outline:none;color:var(--green);font-family:inherit;font-size:22px;text-shadow:0 0 4px var(--green);caret-color:transparent}.caret{display:inline-block;width:12px;height:22px;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 1s steps(1) infinite;vertical-align:middle}.mobile-btn{display:none}#choicePanel{display:none;flex-shrink:0;flex-wrap:wrap;gap:8px;justify-content:center;padding:10px 6px;margin-top:6px;border-top:1px dashed var(--green-dim)}#choicePanel.active{display:flex}.choice-btn{background:transparent;border:2px solid var(--amber);color:var(--amber);font-family:'VT323',monospace;font-size:16px;padding:10px 16px;border-radius:6px;text-shadow:0 0 4px var(--amber);box-shadow:0 0 8px rgba(255,176,0,0.35);cursor:pointer;letter-spacing:1px;min-width:80px;min-height:44px}.choice-btn:active{background:rgba(255,176,0,0.25);box-shadow:0 0 14px rgba(255,176,0,0.6)}
+.choice-btn.pad-focus,.title-btn.pad-focus{background:rgba(255,176,0,0.18);box-shadow:0 0 22px rgba(255,176,0,0.75);transform:scale(1.05);outline:2px solid var(--amber);outline-offset:2px;}
+.title-btn.new-btn.pad-focus{background:rgba(51,255,102,0.18);box-shadow:0 0 22px rgba(51,255,102,0.75);outline-color:var(--green);}
+/* Xbox button icon spans */
+.xbtn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:11px;font-weight:bold;font-family:'Share Tech Mono',monospace;vertical-align:middle;margin:0 2px;text-shadow:none!important;letter-spacing:0;}
+.xbtn-a{background:#1a7a1a;border:1.5px solid #33cc33;color:#fff;}
+.xbtn-b{background:#7a1a1a;border:1.5px solid #cc3333;color:#fff;}
+.xbtn-x{background:#1a1a7a;border:1.5px solid #3366cc;color:#fff;}
+.xbtn-y{background:#7a6a00;border:1.5px solid #ccaa00;color:#fff;}
+.xbtn-lb,.xbtn-rb{background:#2a2a2a;border:1.5px solid #888;color:#ccc;border-radius:4px;width:24px;font-size:10px;}
+.xbtn-back{background:#1a1a1a;border:1.5px solid #666;color:#aaa;border-radius:3px;width:28px;font-size:10px;font-weight:bold;}
+/* PlayStation button shapes */
+.psbtn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-family:'Share Tech Mono',monospace;vertical-align:middle;margin:0 2px;text-shadow:none!important;letter-spacing:0;background:#1a1a2a;border:1.5px solid #4466aa;color:#fff;font-size:14px;font-weight:bold;}
+.psbtn-cross{color:#66aaff;}
+.psbtn-circle{color:#ff6666;}
+.psbtn-square{color:#ff88dd;}
+.psbtn-triangle{color:#66ff99;}
+.psbtn-l1,.psbtn-r1{border-radius:4px;width:24px;font-size:10px;background:#1a1a2a;border:1.5px solid #666;color:#ccc;}
+.psbtn-share{background:#0a0a1a;border:1.5px solid #555;color:#aaa;border-radius:3px;width:34px;font-size:9px;}
+.xdpad{display:inline-block;width:20px;height:20px;vertical-align:middle;margin:0 2px;}#boot{position:fixed;inset:0;background:black;color:var(--green);z-index:10;padding:60px;font-family:'VT323',monospace;font-size:22px;text-shadow:0 0 6px var(--green);display:block;white-space:pre-wrap}#boot.hidden{display:none}@media (max-width:767px),(pointer:coarse){html,body{font-size:18px}.terminal{padding:0 12px}.header{font-size:13px}.fs-btn{display:none}.map-block{font-size:13px}.map-title{font-size:14px;letter-spacing:1px}.ascii{font-size:11px}.savebox{font-size:13px}#cmdList{font-size:13px;padding:6px 4px}.car{font-size:13px}#mapArea{max-height:50vh}#screen{flex:1 1 140px;min-height:100px}.city{font-size:11px;line-height:1.0;filter:none;text-shadow:0 0 3px var(--green),0 0 8px rgba(51,255,102,0.5)}.city .win{text-shadow:0 0 4px var(--amber),0 0 10px var(--amber)}.input-row{display:none}#choicePanel{display:none}#choicePanel.active{display:flex}#mobileNav{display:none;flex-shrink:0;flex-wrap:wrap;justify-content:center;gap:6px;padding:8px 4px;margin-top:6px;border-top:2px solid var(--amber);background:rgba(255,176,0,0.08);box-shadow:0 -2px 12px rgba(255,176,0,0.3)}body.nav-mode #mobileNav{display:flex}body.nav-mode.can-move #choicePanel{display:none}.mobile-btn{display:inline-block;background:transparent;border:2px solid var(--amber);color:var(--amber);font-family:'VT323',monospace;font-size:16px;padding:10px 14px;margin:0;border-radius:6px;text-shadow:0 0 4px var(--amber);box-shadow:0 0 8px rgba(255,176,0,0.4);cursor:pointer;letter-spacing:1px;min-width:70px;min-height:44px}.mobile-btn:active{background:rgba(255,176,0,0.25);box-shadow:0 0 14px rgba(255,176,0,0.6)}
+/* ── Mobile nav: big viewport + overlaid semi-transparent controls ──
+   The on-screen D-pad and action buttons (built in raycaster.js, styled above)
+   become visible and the old bottom button bar is hidden, since the controls
+   now float on the viewport. The viewport uses the full width for readability. */
+body.nav-mode .fp-pad,body.nav-mode .fp-acts{display:block;}
+body.nav-mode #mobileNav{display:none !important;}
+body.nav-mode #mapArea{max-height:none;}
+body.nav-mode .fp-stage{width:100%;max-width:100%;}
+body.nav-mode .fp-canvas{width:100%;max-width:100%;height:auto;}
+body.nav-mode #screen{flex:0 0 auto;min-height:0;}
+}#finaleOverlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:9999;display:none;overflow:hidden;}#finaleOverlay.show{display:block;}#fwCanvas{position:absolute;top:0;left:0;width:100%;height:100%;}#finaleNameWrap{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;width:100%;pointer-events:none;}#finaleName{font-family:"Share Tech Mono",monospace;color:#33ff66;font-size:14px;line-height:1.0;white-space:pre;text-shadow:0 0 8px #33ff66,0 0 18px #33ff66;letter-spacing:1px;opacity:0;transition:opacity 0.6s ease;}#finaleName.show{opacity:1;}#finaleSubtitle{font-family:"VT323",monospace;color:#ffb000;font-size:32px;margin-top:24px;text-shadow:0 0 6px #ffb000;opacity:0;transition:opacity 0.6s ease;letter-spacing:3px;}#finaleSubtitle.show{opacity:1;}@media(max-width:600px){#finaleName{font-size:8px;letter-spacing:0;}#finaleSubtitle{font-size:22px;}}#staticOverlay{position:absolute;top:0;left:0;width:100%;height:100%;display:none;background:#000;}#staticOverlay.show{display:block;}#staticCanvas{position:absolute;top:0;left:0;width:100%;height:100%;}#signalLostText{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:"Noto Sans SC","Microsoft YaHei","SimHei",sans-serif;color:#33ff66;font-size:32px;letter-spacing:6px;text-shadow:0 0 8px #33ff66,0 0 18px #33ff66;background:rgba(0,0,0,0.55);padding:10px 24px;border:2px solid #33ff66;animation:signalSlowBlink 2.2s ease-in-out infinite;}@keyframes signalSlowBlink{0%,100%{opacity:1;}50%{opacity:0.18;}}@media(max-width:600px){#signalLostText{font-size:22px;letter-spacing:3px;padding:6px 14px;}}
+/* === CRT MONITOR HOUSING & EFFECTS === */
+html,body{background:#000 !important;overflow:hidden;}
+body{perspective:1400px;}
+/* Wrapper that gets the curve */
+#crtScreen{position:fixed;top:0;left:0;width:100vw;height:100vh;overflow:hidden;background:#000;z-index:1;}
+#crtScreen::before{content:"";position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at center,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0) 50%),linear-gradient(180deg,rgba(255,255,255,0.06) 0%,rgba(255,255,255,0) 12%,rgba(255,255,255,0) 88%,rgba(0,0,0,0.4) 100%);pointer-events:none;z-index:9000;mix-blend-mode:screen;}
+#crtScreen::after{content:"";position:absolute;top:0;left:0;width:100%;height:100%;background:repeating-linear-gradient(0deg,rgba(0,0,0,0.18) 0px,rgba(0,0,0,0.18) 1px,transparent 1px,transparent 3px);pointer-events:none;z-index:9001;}
+/* Inner content gets the barrel/curve transform */
+#crtInner{position:absolute;top:0;left:0;width:100%;height:100%;transform-origin:center center;filter:url(#crtCurve);}
+/* Vignette + glare on top */
+/* ═══ CRT GLASS OVERLAY ═══════════════════════════════════════════════════
+   A single fixed, click-through layer on top of everything. Gives the screen
+   the look of curved CRT glass: corner vignette, soft glare, edge curvature
+   darkening, scanlines and a phosphor dot grid. Zero layout impact. */
+#crtVignette{
+  position:fixed; inset:0; pointer-events:none; z-index:9002;
+  /* Promote to its own compositor layer. The overlay is static, so once it is
+     painted to a GPU texture it never needs re-rasterizing as the text below
+     it changes — the browser just re-composites the cached layer. This is what
+     stops the expensive scanline/dot/gradient stack from being redrawn on
+     every typed character. No visual change. */
+  will-change:transform;
+  transform:translateZ(0);
+  backface-visibility:hidden;
+  /* curved-glass corner falloff (stronger) + soft upper glare + corner glare */
+  background:
+    radial-gradient(ellipse 96% 96% at 50% 50%,
+      rgba(0,0,0,0) 50%,
+      rgba(0,0,0,0.34) 80%,
+      rgba(0,0,0,0.78) 100%),
+    radial-gradient(ellipse 85% 55% at 50% -4%,
+      rgba(255,255,255,0.08) 0%,
+      rgba(255,255,255,0) 58%),
+    radial-gradient(ellipse 45% 32% at 80% 6%,
+      rgba(255,255,255,0.06) 0%,
+      rgba(255,255,255,0) 66%);
+  /* the inset shadow rims the screen like the edge of curved glass */
+  box-shadow:
+    inset 0 0 90px rgba(0,0,0,0.55),
+    inset 0 0 18px rgba(0,0,0,0.45);
+}
+/* scanlines (more visible) */
+#crtVignette::before{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(
+    to bottom,
+    transparent 0px, transparent 2px,
+    rgba(0,0,0,0.22) 2px, rgba(0,0,0,0.22) 3px);
+}
+/* phosphor dot grid + faint green screen-glow wash */
+#crtVignette::after{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 1px,
+      transparent 1px, transparent 3px),
+    radial-gradient(ellipse 72% 72% at 50% 48%,
+      rgba(60,255,120,0.06) 0%,
+      rgba(0,0,0,0) 72%);
+}
+/* === BEVAN DEATH EFFECT: red vignette + screen glitch === */
+#redVignette{position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:9003;opacity:0;background:radial-gradient(ellipse at center,rgba(120,0,0,0) 38%,rgba(150,0,0,0.55) 74%,rgba(40,0,0,0.92) 100%);}
+#redVignette.show{animation:redVignettePulse 2.8s ease-out forwards;}
+#redVignette.linger{opacity:0.62;transition:opacity 4s ease-out;}
+#redVignette.fade{opacity:0;}
+.death-glitch{animation:deathGlitch 0.5s steps(3,end) 3 !important;}
+/* CRT power-on animation */
+#crtPowerOn{position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:99999;pointer-events:none;}
+#crtPowerOn .crtFlash{position:absolute;top:50%;left:0;width:100%;height:2px;background:#fff;box-shadow:0 0 30px 8px #fff,0 0 60px 16px #fff;transform-origin:center;}
+#crtPowerOn.warming .crtFlash{animation:crtWarmup 1.4s ease-out forwards;}
+@keyframes crtWarmup{0%{transform:scaleY(0.3) scaleX(0.05);opacity:0;}10%{transform:scaleY(0.5) scaleX(1);opacity:1;}25%{transform:scaleY(120) scaleX(1);opacity:0.8;}55%{transform:scaleY(420) scaleX(1);opacity:0.4;}100%{transform:scaleY(420) scaleX(1);opacity:0;}}
+#crtPowerOn.warming{animation:crtScreenOn 1.4s ease-out forwards;}
+@keyframes crtScreenOn{0%{background:#000;}30%{background:#000;}55%{background:#0a1a0e;}100%{background:transparent;}}
+.terminal{transform:perspective(2000px) rotateX(0.6deg);transform-origin:center center;will-change:transform;backface-visibility:hidden;}#mapArea{position:relative;}.fp-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;padding:2px;}.fp-canvas{display:block;background:#020a04;border:2px solid var(--green-dim);box-shadow:0 0 18px rgba(51,255,102,0.25),inset 0 0 24px rgba(0,0,0,0.6);width:100%;max-width:600px;height:auto;image-rendering:auto;}
+/* ── On-screen overlay controls (mobile) ──
+   A "stage" wraps the canvas; the D-pad and action buttons are absolutely
+   positioned on top of it, semi-transparent so the gameplay shows through.
+   Hidden by default (desktop); the mobile media queries switch them on. */
+.fp-stage{position:relative;display:inline-block;line-height:0;max-width:100%;}
+/* ── Bethesda-style compass strip (nav + drive), centred at the top of the viewport ── */
+.cm-compass{position:absolute;top:6px;left:50%;transform:translateX(-50%);width:200px;height:16px;z-index:26;pointer-events:none;opacity:0.88;}
+@media (max-width:600px){.cm-compass{width:168px;height:14px;top:4px;}}
+/* ── persistent player stats ($ / LVL), top-left of the nav viewport ── */
+.fp-stats{position:absolute;top:5px;left:10px;z-index:26;pointer-events:none;line-height:1.2;font-family:"Share Tech Mono","VT323",monospace;font-size:12px;color:#ffb000;text-shadow:0 0 4px rgba(255,176,0,0.6);letter-spacing:1px;opacity:0.88;}
+@media (max-width:767px),(pointer:coarse){.fp-stats{font-size:10px;top:calc(env(safe-area-inset-top,0px) + 4px);left:calc(env(safe-area-inset-left,0px) + 8px);}}
+.fp-pad,.fp-acts{display:none;}
+.fp-pad-btn,.fp-act-btn{
+  position:absolute;
+  font-family:'Share Tech Mono',monospace;
+  color:var(--green);
+  background:rgba(2,16,6,0.34);
+  border:1.5px solid rgba(51,255,102,0.55);
+  border-radius:9px;
+  text-shadow:0 0 5px rgba(51,255,102,0.7);
+  box-shadow:0 0 8px rgba(0,0,0,0.4),inset 0 0 8px rgba(51,255,102,0.12);
+  backdrop-filter:blur(1px);-webkit-backdrop-filter:blur(1px);
+  display:flex;align-items:center;justify-content:center;
+  touch-action:none;user-select:none;-webkit-user-select:none;
+  z-index:5;
+  transition:background 0.08s;
+}
+.fp-pad-btn:active,.fp-act-btn:active{background:rgba(51,255,102,0.30);}
+/* D-pad cross, lower-left of the viewport */
+.fp-pad-btn{width:15%;height:24%;font-size:clamp(14px,4.5vw,22px);min-width:34px;}
+.fp-pad-btn.fp-up{left:16.5%;bottom:50%;}
+.fp-pad-btn.fp-down{left:16.5%;bottom:6%;}
+.fp-pad-btn.fp-left{left:2%;bottom:28%;}
+.fp-pad-btn.fp-right{left:31%;bottom:28%;}
+/* action buttons, right edge of the viewport, stacked */
+.fp-act-btn{right:3%;width:17%;height:20%;font-size:clamp(11px,3.2vw,15px);min-width:42px;min-height:30px;letter-spacing:1px;}
+.fp-act-btn:nth-child(1){bottom:56%;}
+.fp-act-btn:nth-child(2){bottom:31%;}
+.fp-act-btn:nth-child(3){bottom:6%;}
+/* Keep the 3D viewport fully visible inside #mapArea (which is height-capped).
+   Without a height cap the auto-height canvas grows past the map area on tall
+   phones and the bottom of the scene gets clipped. Cap by both axes and let
+   the aspect ratio preserve the rendered image. */
+.fp-canvas{max-height:46vh;object-fit:contain;margin:0 auto;}.fp-title{font-family:"VT323",monospace;color:var(--amber);font-size:18px;text-shadow:0 0 4px var(--amber);letter-spacing:2px;text-align:center;}.fp-status{font-family:"VT323",monospace;color:#aaccaa;font-size:14px;text-align:center;line-height:1.3;text-shadow:none !important;letter-spacing:0.5px;}.fp-mini-label{font-family:"VT323",monospace;color:#ffb000;font-size:14px;text-shadow:none !important;letter-spacing:2px;text-align:center;}
+.snatcher-title{
+font-family:'VT323',monospace;font-size:62px;font-weight:bold;font-style:italic;
+letter-spacing:8px;text-transform:uppercase;text-align:center;
+background:linear-gradient(180deg,#ffe066 0%,#cc8800 30%,#ffcc44 50%,#aa6600 70%,#ffdd66 100%);
+-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+filter:drop-shadow(2px 3px 0px #442200) drop-shadow(0px 0px 12px rgba(255,180,0,0.5));
+line-height:1.1;padding:8px 0;
+}
+.snatcher-sub{
+font-family:'Share Tech Mono',monospace;font-size:13px;
+color:#998866;letter-spacing:6px;text-transform:uppercase;text-align:center;
+text-shadow:none !important;margin-top:2px;
+}
+@media(max-width:600px){
+.snatcher-title{font-size:36px;letter-spacing:4px;}
+.snatcher-sub{font-size:10px;letter-spacing:4px;}
+}
+.stair-anim{font-family:'VT323','Share Tech Mono',monospace;font-size:22px;line-height:1.1;letter-spacing:1px;color:#66ccff;white-space:pre;display:inline-block;text-align:left;text-shadow:0 0 10px #66ccff,0 0 20px rgba(102,204,255,0.7);padding:14px 18px;margin:10px auto;border:1px solid rgba(102,204,255,0.3);background:rgba(6,20,40,0.4);border-radius:4px;}
+@media(max-width:600px){.stair-anim{font-size:14px;padding:8px 10px;}}
+
+/* === DESKTOP NAV BAR === */
+#desktopNav{display:none;flex-shrink:0;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px;padding:10px 8px;margin-top:6px;border-top:2px solid var(--green-dim);background:rgba(6,43,16,0.45);}
+body.nav-mode #desktopNav{display:flex;}
+.desk-btn{background:transparent;border:2px solid var(--green);color:var(--green);font-family:'VT323',monospace;font-size:20px;padding:8px 20px;border-radius:6px;text-shadow:0 0 6px var(--green);box-shadow:0 0 8px rgba(51,255,102,0.3);cursor:pointer;letter-spacing:2px;transition:all 0.1s;}
+.desk-btn:hover{background:rgba(51,255,102,0.12);box-shadow:0 0 14px rgba(51,255,102,0.6);}
+.desk-btn:active{background:rgba(51,255,102,0.25);}
+.desk-btn-save{border-color:var(--amber);color:var(--amber);text-shadow:0 0 6px var(--amber);box-shadow:0 0 8px rgba(255,176,0,0.3);}
+#deskPadGroup{display:none;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;font-family:'VT323',monospace;font-size:19px;color:var(--green);letter-spacing:1px;}
+#deskPadGroup .pad-action{display:inline-flex;align-items:center;gap:4px;color:#aaffaa;}
+body.pad-connected #cmdList{display:none !important;}
+body.pad-connected #deskBtnGroup{display:none !important;}
+body.pad-connected #deskPadGroup{display:flex !important;}
+body.pad-connected #deskCheckBtn{display:none !important;}
+.desk-btn-save:hover{background:rgba(255,176,0,0.12);box-shadow:0 0 14px rgba(255,176,0,0.6);}
+.pad-hint{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--green-dim);letter-spacing:1px;margin-left:12px;}
+/* === TITLE SCREEN BUTTONS === */
+.title-btn{display:block;width:100%;max-width:400px;margin:8px auto;background:transparent;border:2px solid var(--amber);color:var(--amber);font-family:'VT323',monospace;font-size:28px;padding:14px 24px;border-radius:6px;text-shadow:0 0 6px var(--amber);box-shadow:0 0 12px rgba(255,176,0,0.35);cursor:pointer;letter-spacing:3px;transition:all 0.15s;}
+.title-btn:hover{background:rgba(255,176,0,0.14);box-shadow:0 0 20px rgba(255,176,0,0.7);transform:scale(1.03);}
+.title-btn:active{background:rgba(255,176,0,0.3);}
+.title-btn.new-btn{border-color:var(--green);color:var(--green);text-shadow:0 0 6px var(--green);box-shadow:0 0 12px rgba(51,255,102,0.35);}
+.title-btn.new-btn:hover{background:rgba(51,255,102,0.12);box-shadow:0 0 20px rgba(51,255,102,0.7);}
+.title-btn.gear-btn:hover{background:rgba(51,255,102,0.12);border-color:var(--green)!important;color:var(--green-bright)!important;box-shadow:0 0 20px rgba(51,255,102,0.55);transform:scale(1.08) rotate(30deg);transition:all 0.25s;}
+.title-btn.gear-btn{transition:all 0.2s;}
+/* === CONTROLLER CONNECTED TOAST === */
+#padToast{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:99999;
+  background:rgba(2,10,4,0.92);border:2px solid var(--green);border-radius:8px;
+  padding:10px 22px;font-family:'VT323',monospace;font-size:20px;color:var(--green);
+  text-shadow:0 0 6px var(--green);box-shadow:0 0 18px rgba(51,255,102,0.45);
+  letter-spacing:2px;display:none;pointer-events:none;white-space:nowrap;
+  transition:opacity 0.5s ease;}
+#padToast.show{display:block;opacity:1;}
+#padToast.fade{opacity:0;}
+
+/* === GAMEPAD BUTTON INDICATORS === */
+.gp-badge{display:inline-block;background:rgba(0,0,0,0.6);border:1px solid var(--green-dim);color:var(--green);border-radius:4px;font-size:13px;padding:1px 6px;font-family:'Share Tech Mono',monospace;letter-spacing:0;text-shadow:none !important;vertical-align:middle;margin:0 2px;}
+@media(max-width:767px),(pointer:coarse){#desktopNav{display:none!important;}}
+
+/* ── Anti-selection ── */
+*{
+  -webkit-user-select:none;
+  -moz-user-select:none;
+  -ms-user-select:none;
+  user-select:none;
+}
+input,textarea{
+  -webkit-user-select:text;
+  -moz-user-select:text;
+  user-select:text;
+}
+
+/* === NAV ROW WRAPPER === */
+#navRow{display:none;flex-shrink:0;}
+body.nav-mode #navRow{display:flex;flex-direction:column;}
+@media(min-width:601px){
+  /* Keyboard/mouse mode: buttons LEFT, hints RIGHT */
+  body.nav-mode #navRow{flex-direction:row;align-items:center;gap:10px;border-top:2px solid var(--green-dim);margin-top:6px;background:rgba(6,43,16,0.25);padding:4px 8px;}
+  body.nav-mode:not(.pad-connected) #navRow #desktopNav{order:0;flex:0 0 auto;border-top:none!important;margin-top:0!important;background:transparent!important;padding:4px 0!important;gap:7px!important;justify-content:flex-start!important;}
+  body.nav-mode:not(.pad-connected) #navRow #cmdList{order:1;flex:1;border-top:none!important;margin-top:0!important;text-align:right!important;padding-right:12px!important;background:transparent!important;}
+  body.nav-mode:not(.pad-connected) #navRow .desk-btn{font-size:17px!important;padding:6px 16px!important;letter-spacing:1px!important;}
+  /* Controller mode: chips CENTERED */
+  body.nav-mode.pad-connected #navRow{justify-content:center;}
+  body.nav-mode.pad-connected #navRow #desktopNav{order:0;flex:0 0 auto;border-top:none!important;margin-top:0!important;background:transparent!important;padding:4px 0!important;justify-content:center!important;}
+  body.nav-mode.pad-connected #navRow #cmdList{display:none!important;}
+}
+
+/* ── nav-mode aiming crosshair (desktop): minimal opaque white plus ── */
+.fp-crosshair{position:absolute;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);pointer-events:none;z-index:20;filter:drop-shadow(0 0 1px rgba(0,0,0,0.85));}
+.fp-crosshair::before,.fp-crosshair::after{content:"";position:absolute;background:#ffffff;}
+.fp-crosshair::before{left:50%;top:0;width:2px;height:100%;transform:translateX(-50%);}
+.fp-crosshair::after{top:50%;left:0;height:2px;width:100%;transform:translateY(-50%);}
+@media (pointer:coarse){.fp-crosshair{display:none !important;}}
+/* ── nav item-read confirm prompt (held until the player presses Enter) ── */
+.nav-read-prompt{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:45;
+  font-family:'VT323',monospace;font-size:20px;letter-spacing:1px;color:var(--green-bright);
+  background:rgba(6,20,10,0.86);border:1px solid var(--green-dim);border-radius:5px;padding:6px 16px;
+  text-shadow:0 0 6px var(--green);animation:navReadBlink 1.05s steps(1) infinite;cursor:pointer;}
+.nav-read-prompt::before{content:"\25B6  ";}
+@keyframes navReadBlink{0%,55%{opacity:1}56%,100%{opacity:0.35}}
+body.rtl-lang #screen .line.sys,body.rtl-lang #screen .line.press-continue{text-align:center;}
+body.rtl-lang .fp-title{direction:rtl;}
+body.rtl-lang #cmdList .hint{direction:rtl;text-align:right;}
+body.rtl-lang #fpStatusBar{direction:rtl;}
+body.rtl-lang .choice-btn{direction:rtl;}
+body.rtl-lang #settingsModal{direction:rtl;}
+body.rtl-lang #settingsModal button{direction:rtl;}
+
+/* ── Mobile performance: disable expensive GPU overlays ── */
+@media(max-width:600px){
+  .crt::before,.crt::after{display:none !important;}
+  #crtScreen::before,#crtScreen::after{display:none !important;}
+  /* Reduce animations */
+  .blink{animation:none !important;}
+  /* Disable text-shadow on most elements (massive paint cost) */
+  #screen .line{text-shadow:none !important;}
+  .fp-title{text-shadow:0 0 4px var(--amber) !important;}
+  .desk-btn{text-shadow:none !important;}
+  /* Disable backdrop filters */
+  *{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+}
+
+/* ── Pause menu button ── */
+.pause-btn{background:transparent;border:1px solid var(--green-dim);color:var(--green);font-family:'VT323',monospace;font-size:22px;padding:2px 10px;cursor:pointer;margin-right:8px;border-radius:3px;transition:all 0.2s;line-height:1;vertical-align:middle;}
+.pause-btn:hover{border-color:var(--amber);color:var(--amber);background:rgba(255,176,0,0.1);box-shadow:0 0 8px rgba(255,176,0,0.3);}
+/* Hide on title screen */
+body:not(.game-started) .pause-btn{display:none;}
+/* Pause modal */
+#pauseModal{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99997;display:flex;align-items:center;justify-content:center;padding:20px;}
+#pauseModal .pause-box{background:#020a04;border:2px solid var(--amber);box-shadow:0 0 30px rgba(255,176,0,0.5),inset 0 0 20px rgba(6,43,16,0.6);padding:28px 32px;max-width:400px;width:100%;font-family:'VT323',monospace;color:var(--green);}
+#pauseModal .pause-title{color:var(--amber);font-size:28px;letter-spacing:4px;text-shadow:0 0 8px var(--amber);text-align:center;margin-bottom:18px;border-bottom:1px dashed var(--green-dim);padding-bottom:12px;}
+#pauseModal .pause-btn-row{display:flex;flex-direction:column;gap:10px;}
+#pauseModal .pm-btn{background:transparent;border:2px solid var(--green);color:var(--green);font-family:'VT323',monospace;font-size:22px;padding:14px;border-radius:6px;cursor:pointer;letter-spacing:2px;text-shadow:0 0 4px var(--green);transition:all 0.15s;text-align:center;}
+#pauseModal .pm-btn:hover{background:rgba(51,255,102,0.1);border-color:var(--green-bright);color:var(--green-bright);box-shadow:0 0 12px rgba(51,255,102,0.4);}
+#pauseModal .pm-btn.danger{border-color:#cc3333;color:#cc3333;text-shadow:0 0 4px #cc3333;}
+#pauseModal .pm-btn.danger:hover{background:rgba(204,51,51,0.15);border-color:#ff4444;color:#ff4444;box-shadow:0 0 12px rgba(255,68,68,0.4);}
+@media(max-width:600px){
+  #pauseModal .pause-box{padding:20px 16px;max-width:320px;}
+  #pauseModal .pause-title{font-size:22px;}
+  #pauseModal .pm-btn{font-size:18px;padding:12px;}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LANDSCAPE PHONE FIXES
+   Short, wide touch viewports (a phone held sideways) previously fell through
+   the cracks: too wide for the width-based mobile rules to fully tame, too
+   short for desktop spacing to fit. Result: oversized text and a cramped,
+   barely-playable nav mode. These rules target short touch viewports only
+   (height <= 500px + coarse pointer) so desktop and portrait are untouched.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-height:500px) and (orientation:landscape) and (pointer:coarse){
+
+  /* ── READING MODE (story text): smaller, centered like desktop ── */
+  html,body{font-size:13px;}
+  .header{font-size:10px;padding-bottom:3px;margin-bottom:4px;}
+  .line{margin-bottom:3px;line-height:1.25;}
+  #screen{font-size:13px;line-height:1.3;padding-bottom:4px;}
+  .terminal{padding:0 24px;max-width:760px;}
+  .crt{padding:6px 0;}
+  .choice-btn{font-size:13px;padding:6px 14px;min-height:34px;min-width:64px;}
+  #choicePanel{gap:6px;padding:5px 6px;margin-top:3px;}
+  .press-continue{font-size:13px;}
+
+  /* Title screen scaling */
+  .snatcher-title{font-size:24px;letter-spacing:2px;}
+  .snatcher-sub{font-size:11px;letter-spacing:3px;}
+  #pixelCityBox{max-width:74vw;height:auto;}
+
+  /* ── NAV MODE: big viewport, overlaid controls (no column split) ──
+     The viewport fills the available landscape height; the D-pad and action
+     buttons float on top of it (styled in the base + mobile rules). The empty
+     story area and the old button bar are removed so the game gets the screen. */
+  body.nav-mode .header{display:none;}
+  body.nav-mode .terminal{padding:2px 8px;justify-content:center;touch-action:none;overscroll-behavior:none;}
+  body.nav-mode #mapArea{max-height:none;display:flex;align-items:center;justify-content:center;}
+  body.nav-mode .fp-wrap{width:100%;gap:2px;}
+  body.nav-mode .fp-stage{width:auto;max-width:100%;}
+  body.nav-mode .fp-canvas{max-height:82vh;max-width:96vw;width:auto;height:auto;}
+  body.nav-mode #screen{flex:0 0 auto;min-height:0;max-height:0;padding:0;overflow:hidden;}
+  body.nav-mode #mobileNav{display:none !important;}
+  .fp-title{font-size:12px;letter-spacing:1px;}
+  .fp-status{font-size:10px;line-height:1.1;}
+}
+
+/* Very short landscape (small phones): trim text a touch more */
+@media (max-height:380px) and (orientation:landscape){
+  html,body{font-size:12px;}
+  .snatcher-title{font-size:20px;}
+  #screen{font-size:12px;}
+  .fp-title{font-size:11px;}
+  .fp-status{font-size:10px;}
+}
+
+/* ── Floor transition label ──
+   A brief centered banner naming the floor you're arriving on, that fades in
+   then out quickly during a stair climb. Sits above the 3D view, click-through. */
+#floorFade{
+  position:fixed; inset:0; z-index:9100;
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:none;
+  opacity:0;
+}
+#floorFade .ff-text{
+  font-family:'Share Tech Mono', monospace;
+  color:var(--amber);
+  font-size:clamp(20px,5vw,40px);
+  letter-spacing:4px;
+  text-align:center;
+  text-shadow:0 0 10px var(--amber), 0 0 26px rgba(255,176,0,0.5);
+  padding:10px 26px;
+  border-top:1px solid rgba(255,176,0,0.5);
+  border-bottom:1px solid rgba(255,176,0,0.5);
+  background:rgba(2,10,6,0.32);
+  white-space:nowrap;
+}
+#floorFade.run{ animation:floorFadeAnim 1100ms ease-in-out forwards; }
+@keyframes floorFadeAnim{
+  0%   { opacity:0; transform:scale(0.96); }
+  18%  { opacity:1; transform:scale(1); }
+  62%  { opacity:1; transform:scale(1); }
+  100% { opacity:0; transform:scale(1.02); }
+}
+
+/* ── Character art (CRT line-art SVG figures) ── */
+.line.char-art{ text-align:center; white-space:normal; margin:6px 0; }
+.char-art .char-svg{
+  display:inline-block;
+  width:auto; height:clamp(160px,34vh,300px);
+  max-width:92%;
+  filter:drop-shadow(0 0 6px rgba(51,255,102,0.35));
+}
+/* the glitch class already applies the jitter animation; nudge it for SVG */
+.line.char-art.glitch{ animation:glitchJitter 0.55s steps(2,end) infinite; }
+@media (max-width:767px),(pointer:coarse){
+  .char-art .char-svg{ height:clamp(140px,30vh,240px); }
+}
+.cv-wrap{position:relative;}.cv-canvas{width:auto!important;max-width:96vw!important;max-height:82vh!important;height:auto!important;margin:0 auto;display:block;}.cv-hint{font-family:"VT323",monospace;color:var(--amber);font-size:14px;letter-spacing:1px;text-align:center;text-shadow:0 0 4px var(--amber);margin-top:2px;}
+.cv-keys{color:#aaffaa;font-size:12px;letter-spacing:1px;text-shadow:none;display:inline-block;margin-top:1px;}
+.cv-wrap{position:relative;}
+.cv-stage .fp-pad,.cv-stage .fp-acts{display:block;}
+.cv-desknav{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px;padding:10px 8px;margin-top:6px;border-top:2px solid var(--green-dim);background:rgba(6,43,16,0.45);}
+.cv-bottombar{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:center;gap:16px;flex-shrink:0;border-top:2px solid var(--green-dim);background:rgba(6,43,16,0.25);padding:6px 10px;}
+.cv-bottombar .cv-desknav{border-top:none;background:transparent;margin-top:0;padding:0;}
+.cv-bottombar .cv-cmds{margin-top:0;}
+/* ── mobile racing controls (drive minigame) ── */
+.cv-mobile{position:relative;width:96vw;max-width:96vw;margin:0 auto;}
+.cv-mobile .cv-canvas{width:100%!important;max-width:100%!important;height:auto!important;}
+.cv-steer{position:absolute;left:3%;bottom:5%;display:flex;align-items:center;gap:7px;z-index:16;touch-action:none;}
+.cv-arrow{width:48px;height:48px;border-radius:50%;border:2px solid #4dd0e1;background:rgba(8,30,36,0.55);color:#7fe9f7;font-size:22px;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 0 10px rgba(77,208,225,0.5);padding:0;-webkit-tap-highlight-color:transparent;}
+.cv-arrow.cv-on{background:rgba(77,208,225,0.4);box-shadow:0 0 18px rgba(77,208,225,0.95);}
+.cv-wheel{width:56px;height:56px;border-radius:50%;border:6px solid #161b22;background:radial-gradient(circle at 50% 38%,#3a4250,#10141a);box-shadow:0 0 12px rgba(77,208,225,0.35),inset 0 0 8px rgba(0,0,0,0.8);position:relative;flex:0 0 auto;}
+.cv-wheel-hub{position:absolute;left:50%;top:50%;width:16px;height:16px;border-radius:50%;background:#2a313c;border:2px solid #4a5563;transform:translate(-50%,-50%);}
+.cv-wheel-spoke{position:absolute;left:50%;top:6px;width:4px;height:18px;background:#2a313c;transform:translateX(-50%);border-radius:2px;}
+.cv-pedals{position:absolute;right:3%;bottom:5%;display:flex;gap:9px;z-index:16;touch-action:none;}
+.cv-pedal{width:46px;height:66px;border-radius:11px;border:2px solid rgba(255,255,255,0.55);display:flex;align-items:flex-end;justify-content:center;padding:0 0 5px;-webkit-tap-highlight-color:transparent;}
+.cv-pedal-lbl{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;color:rgba(255,255,255,0.85);text-shadow:0 1px 2px rgba(0,0,0,0.8);}
+.cv-pedal-brake{background-color:rgba(60,18,30,0.5);background-image:radial-gradient(circle,rgba(240,105,140,0.95) 1.6px,transparent 2px);background-size:9px 9px;border-color:rgba(240,120,150,0.8);box-shadow:0 0 10px rgba(240,100,140,0.4);}
+.cv-pedal-brake.cv-on{background-color:rgba(130,40,65,0.65);box-shadow:0 0 20px rgba(240,100,140,0.95);}
+.cv-pedal-gas{background-color:rgba(26,58,33,0.5);background-image:repeating-linear-gradient(90deg,rgba(165,235,175,0.9) 0 4px,transparent 4px 9px);border-color:rgba(150,230,160,0.85);box-shadow:0 0 10px rgba(150,230,160,0.4);}
+.cv-pedal-gas.cv-on{background-color:rgba(55,115,65,0.65);box-shadow:0 0 20px rgba(150,230,160,0.95);}
+.cv-acts-top{position:absolute;right:3%;top:4%;display:flex;gap:6px;z-index:16;}
+.cv-act-top{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--green);background:rgba(2,16,6,0.55);border:1.5px solid rgba(51,255,102,0.55);border-radius:4px;padding:3px 7px;-webkit-tap-highlight-color:transparent;}
+.cv-act-top:active{background:rgba(51,255,102,0.3);}
+
+/* ===== viewport rework: fill screen, hide under-viewport text box, in-view text ===== */
+/* Nav mode: drop the text box, enlarge the viewport, ephemeral toast carries the text. */
+body.nav-mode #screen{display:none !important;}
+/* ── nav-dialog: a minigame / multi-line conversation is running. Reveal the text
+   screen (where minigames & dialogue render) and suspend the 3D viewport + HUD so
+   the interaction is actually visible. Restored to full-screen nav afterwards. ── */
+body.nav-mode.nav-dialog #mapArea{display:none !important;}
+body.nav-mode.nav-dialog #navRow{display:none !important;}
+body.nav-mode.nav-dialog .fp-crosshair{display:none !important;}
+body.nav-mode.nav-dialog #navToast{display:none !important;}
+body.nav-mode.nav-dialog #screen{display:block !important;flex:1 1 auto !important;min-height:0 !important;max-height:none !important;height:auto !important;padding:14px 16px !important;overflow-y:auto !important;}
+body.nav-mode.nav-dialog .terminal{justify-content:flex-start !important;padding:8px 14px !important;touch-action:auto !important;}
+body.nav-mode.nav-dialog .crt{padding:14px !important;}
+body.nav-mode .fp-canvas{max-width:100vw !important;max-height:88vh !important;width:auto !important;height:auto !important;}
+body.nav-mode #mapArea{max-height:none !important;}
+/* Drive mode: same idea; quips appear in a bubble above the car. */
+body.cv-driving #screen{display:none !important;}
+body.cv-driving .cv-canvas{max-width:100vw !important;max-height:88vh !important;width:auto !important;height:auto !important;}
+/* Ephemeral nav text, near the top of the screen, fades out. */
+.view-toast{position:fixed;left:50%;top:max(10px,5vh);transform:translateX(-50%) translateY(-8px);max-width:min(680px,92vw);max-height:38vh;overflow-y:auto;z-index:60;font-family:'VT323','Share Tech Mono',monospace;font-size:clamp(15px,2.4vw,22px);line-height:1.3;text-align:center;color:var(--green);background:rgba(2,12,5,0.82);border:1px solid var(--green-dim);border-radius:6px;padding:8px 16px;text-shadow:0 0 6px rgba(51,255,102,0.5);box-shadow:0 0 18px rgba(0,0,0,0.6),0 0 10px rgba(51,255,102,0.15);opacity:0;pointer-events:none;transition:opacity .35s ease,transform .35s ease;}
+.view-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+/* Drive chat bubble above the car (MMO-style), with a tail pointing down at it. */
+.cv-bubble{position:absolute;left:50%;top:40%;transform:translateX(-50%) translateY(-6px);max-width:min(72%,460px);z-index:20;font-family:'VT323','Share Tech Mono',monospace;font-size:clamp(14px,2.2vw,20px);line-height:1.25;text-align:center;color:#eafff0;background:rgba(4,14,8,0.88);border:1px solid var(--green);border-radius:8px;padding:7px 14px;text-shadow:0 0 5px rgba(51,255,102,0.5);box-shadow:0 0 16px rgba(0,0,0,0.6);opacity:0;pointer-events:none;transition:opacity .3s ease,transform .3s ease;}
+.cv-bubble.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.cv-bubble::after{content:'';position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);border:8px solid transparent;border-top-color:rgba(4,14,8,0.88);border-bottom:0;}
+
+/* reverse pedal (amber), matches brake/gas styling */
+.cv-pedal-rev{background-color:rgba(60,46,16,0.5);background-image:repeating-linear-gradient(45deg,rgba(245,205,120,0.9) 0 3px,transparent 3px 8px);border-color:rgba(240,200,120,0.85);box-shadow:0 0 10px rgba(240,200,120,0.4);}
+.cv-pedal-rev.cv-on{background-color:rgba(130,100,40,0.65);box-shadow:0 0 20px rgba(240,200,120,0.95);}
+
+/* ===== mobile: on-screen controls live in the margins, not over the viewport ===== */
+@media (max-width:767px),(pointer:coarse){
+  body.nav-mode .fp-pad, body.nav-mode .fp-acts,
+  body.cv-driving .cv-steer, body.cv-driving .cv-pedals, body.cv-driving .cv-acts-top{ position:fixed !important; z-index:40; }
+
+  /* compact cross d-pad + stacked action buttons inside their now-fixed boxes */
+  body.nav-mode .fp-pad-btn{ width:34% !important; height:31% !important; }
+  body.nav-mode .fp-pad-btn.fp-up{ left:33% !important; bottom:62% !important; }
+  body.nav-mode .fp-pad-btn.fp-down{ left:33% !important; bottom:4% !important; }
+  body.nav-mode .fp-pad-btn.fp-left{ left:2% !important; bottom:33% !important; }
+  body.nav-mode .fp-pad-btn.fp-right{ left:64% !important; bottom:33% !important; }
+  body.nav-mode .fp-act-btn{ left:6% !important; right:auto !important; width:88% !important; height:28% !important; }
+  body.nav-mode .fp-act-btn:nth-child(1){ bottom:68% !important; }
+  body.nav-mode .fp-act-btn:nth-child(2){ bottom:36% !important; }
+  body.nav-mode .fp-act-btn:nth-child(3){ bottom:4% !important; }
+
+  /* PORTRAIT: viewport up top, controls along the bottom */
+  @media (orientation:portrait){
+    body.nav-mode #mapArea, body.cv-driving #mapArea{ align-items:flex-start !important; }
+    body.nav-mode .fp-canvas, body.cv-driving .cv-canvas{ max-width:100vw !important; max-height:52vh !important; width:auto !important; height:auto !important; }
+    body.nav-mode .fp-pad{ left:3vw; bottom:2vh; width:40vmin; height:40vmin; }
+    body.nav-mode .fp-acts{ left:auto; right:3vw; bottom:2vh; width:22vmin; height:40vmin; }
+    body.cv-driving .cv-steer{ left:3vw; bottom:2vh; }
+    body.cv-driving .cv-pedals{ left:auto; right:3vw; bottom:2vh; }
+    body.cv-driving .cv-acts-top{ left:50%; right:auto; top:53vh; transform:translateX(-50%); }
+  }
+  /* LANDSCAPE: viewport centred, controls in the side margins */
+  @media (orientation:landscape){
+    body.nav-mode .fp-canvas, body.cv-driving .cv-canvas{ max-width:58vw !important; max-height:94vh !important; width:auto !important; height:auto !important; }
+    body.nav-mode .fp-pad{ left:2vw; bottom:6vh; width:34vmin; height:34vmin; }
+    body.nav-mode .fp-acts{ left:auto; right:2vw; bottom:6vh; width:20vmin; height:40vmin; }
+    body.cv-driving .cv-steer{ left:2vw; bottom:6vh; }
+    body.cv-driving .cv-pedals{ left:auto; right:2vw; bottom:6vh; }
+    body.cv-driving .cv-acts-top{ right:auto; left:2vw; top:2vh; }
+  }
+}
+.cv-cmds{font-family:'VT323','Share Tech Mono',monospace;font-size:18px;line-height:1.25;text-align:center;color:var(--green);margin-top:6px;}
+.cv-cmds .hint{color:var(--amber);text-shadow:0 0 4px var(--amber);}
+.cv-cmds .cmds{color:#aaffaa;margin-top:2px;}
+.cv-savebox{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(2,10,4,0.93);border:2px solid var(--green-dim);box-shadow:0 0 18px rgba(51,255,102,0.3);padding:10px 14px;z-index:20;border-radius:3px;}.cv-speed{position:absolute;right:12px;bottom:30px;font-family:"VT323",monospace;color:var(--green-bright);font-size:26px;text-shadow:0 0 6px var(--green-bright);letter-spacing:2px;pointer-events:none;}
+.cv-mm{position:absolute;left:14px;bottom:16px;z-index:20;pointer-events:none;opacity:0.96;}
+@media(max-width:600px){.cv-mm{left:8px;bottom:96px;}}
+/* ============================================================
+   16:9 FULL-SCREEN VIEWPORT for nav + drive
+   (desktop & landscape mobile fill the screen; controls overlay.
+    portrait mobile keeps the band-on-top + bottom-dock layout.)
+   ============================================================ */
+/* break the viewport out of the 920px reading column */
+body.nav-mode .crt, body.cv-driving .crt{ padding:0 !important; }
+body.nav-mode .terminal, body.cv-driving .terminal{ max-width:100vw !important; width:100vw !important; padding:0 !important; }
+body.nav-mode #mapArea, body.cv-driving #mapArea{
+  width:100vw !important; height:100vh !important; max-height:100vh !important;
+  display:flex !important; align-items:center !important; justify-content:center !important; overflow:hidden !important;
+}
+body.nav-mode .fp-wrap, body.cv-driving .cv-wrap, body.cv-driving .fp-wrap{
+  position:relative !important; width:100vw !important; height:100vh !important; max-width:100vw !important;
+}
+/* The compass work (1.9.10) wrapped both game canvases in .fp-stage
+   (position:relative, unsized inline-block), which captured the absolute
+   inset-0 canvas below and collapsed the desktop viewport to a 0x0 point.
+   Same fix mobile got in the v1.8.4 block: make the stage a full-size
+   positioning context so the canvas has a box to fill. */
+body.nav-mode .fp-stage, body.cv-driving .fp-stage{
+  position:absolute !important; inset:0 !important; display:block !important;
+  width:100% !important; height:100% !important; max-width:none !important; line-height:0 !important;
+}
+body.nav-mode .fp-canvas, body.cv-driving .cv-canvas{
+  position:absolute !important; inset:0 !important;
+  width:100% !important; height:100% !important; max-width:none !important; max-height:none !important;
+  object-fit:cover !important;
+}
+/* title floats over the top of the viewport */
+body.nav-mode .fp-title, body.cv-driving .cv-title{ position:absolute !important; top:26px; left:0; right:0; text-align:center; z-index:14; font-size:14px !important; opacity:0.85; }
+/* HERE/context bar pins bottom-centre so the top band belongs to compass + title */
+body.nav-mode:not(.nav-dialog) .fp-status{ position:fixed; left:50%; bottom:64px; transform:translateX(-50%); z-index:16; pointer-events:none; background:rgba(2,10,5,0.45); padding:2px 10px; border-radius:5px; }
+.fp-status:empty{ display:none; }
+/* desktop control bar overlays the bottom-centre of the viewport */
+body.nav-mode .cv-bottombar, body.cv-driving .cv-bottombar, body.nav-mode #navRow{
+  position:fixed !important; left:50% !important; transform:translateX(-50%); bottom:0 !important;
+  width:auto !important; max-width:100vw; z-index:40 !important;
+  background:rgba(6,20,10,0.80) !important; border:1px solid var(--green-dim) !important; border-bottom:0 !important;
+  border-radius:6px 6px 0 0 !important;
+}
+/* nav bar shows the same CHECK / SAVE / INV trio as the drive bar */
+body.nav-mode:not(.pad-connected) #navRow{ flex-direction:row !important; align-items:center !important; gap:12px !important; margin-top:0 !important; padding:6px 14px !important; }
+body.nav-mode:not(.pad-connected) #deskBtnGroup{ display:flex !important; align-items:center !important; gap:7px !important; }
+body.nav-mode:not(.pad-connected) #navRow #cmdList{ flex:0 0 auto !important; text-align:center !important; padding-right:0 !important; }
+
+@media (max-width:767px),(pointer:coarse){
+  /* the floated desktop nav bar is desktop-only; mobile keeps its own dock/legend flow */
+  body.nav-mode #navRow{ position:static !important; transform:none !important; left:auto !important; bottom:auto !important; z-index:auto !important; }
+  /* LANDSCAPE: viewport fills; on-glass controls float over the corners */
+  @media (orientation:landscape){
+    body.cv-driving .cv-steer{ position:fixed !important; left:2vw !important; bottom:4vh !important; }
+    body.cv-driving .cv-pedals{ position:fixed !important; right:2vw !important; left:auto !important; bottom:4vh !important; }
+    body.cv-driving .cv-acts-top{ position:fixed !important; left:2vw !important; right:auto !important; top:2vh !important; }
+    body.nav-mode .fp-pad{ position:fixed !important; left:2vw !important; bottom:3vh !important; width:34vmin; height:34vmin; }
+    body.nav-mode .fp-acts{ position:fixed !important; right:2vw !important; left:auto !important; bottom:3vh !important; width:20vmin; height:34vmin; }
+  }
+  /* PORTRAIT: don't fill — band on top, controls along the bottom */
+  @media (orientation:portrait){
+    body.nav-mode #mapArea, body.cv-driving #mapArea{ height:auto !important; align-items:flex-start !important; }
+    body.nav-mode .fp-wrap, body.cv-driving .cv-wrap, body.cv-driving .fp-wrap{ height:auto !important; }
+    body.nav-mode .fp-canvas, body.cv-driving .cv-canvas{
+      position:static !important; width:100vw !important; height:auto !important;
+      max-width:100vw !important; max-height:52vh !important; object-fit:contain !important;
+    }
+    body.nav-mode .fp-title, body.cv-driving .cv-title{ position:static !important; }
+    body.cv-driving .cv-steer{ position:fixed !important; left:3vw !important; bottom:2vh !important; }
+    body.cv-driving .cv-pedals{ position:fixed !important; right:3vw !important; left:auto !important; bottom:2vh !important; }
+    body.cv-driving .cv-acts-top{ position:fixed !important; left:50% !important; right:auto !important; top:53vh !important; transform:translateX(-50%); }
+    body.nav-mode .fp-pad{ position:fixed !important; left:3vw !important; bottom:2vh !important; width:40vmin; height:40vmin; }
+    body.nav-mode .fp-acts{ position:fixed !important; right:3vw !important; left:auto !important; bottom:2vh !important; width:22vmin; height:40vmin; }
+    body.nav-mode .cv-bottombar, body.cv-driving .cv-bottombar{ position:static !important; transform:none !important; }
+  }
+}
+/* -- crisp, tactile interactive feedback (UI responsiveness polish) -- */
+button,.choice-btn,.desk-btn,.title-btn{-webkit-tap-highlight-color:transparent;}
+.choice-btn{transition:transform .07s ease, background .1s ease, box-shadow .1s ease;}
+.choice-btn:hover{background:rgba(255,176,0,0.12);box-shadow:0 0 14px rgba(255,176,0,0.55);}
+.choice-btn:active{transform:translateY(1px) scale(0.985);}
+.desk-btn:active{transform:translateY(1px) scale(0.985);}
+.nav-read-prompt:active{transform:translateX(-50%) scale(0.97);}
+
+
+/* ===== unified viewport treatment: nav + drive share one "CRT glass" =====
+   Both 3D viewports get the same scanlines, phosphor tint, and vignette so the
+   driving minigame and nav mode read as one machine. pointer-events:none so all
+   input passes through; hidden during nav-dialog so reading stays crisp. */
+body.nav-mode:not(.nav-dialog)::after,
+body.cv-driving::after{
+ content:"";position:fixed;inset:0;pointer-events:none;z-index:30;
+ background:
+  repeating-linear-gradient(0deg,rgba(0,0,0,0.14) 0 1px,transparent 1px 3px),
+  radial-gradient(ellipse at center,rgba(120,255,160,0.030) 0%,transparent 55%,rgba(0,0,0,0.32) 100%);
+}
+/* identical color grading on both canvases */
+.fp-canvas,.cv-canvas{filter:saturate(1.06) contrast(1.05) brightness(1.02);}
+/* give the drive viewport the same bezel as nav so the chrome matches */
+body.cv-driving .cv-canvas{border:2px solid var(--green-dim);box-shadow:0 0 18px rgba(51,255,102,0.25),inset 0 0 24px rgba(0,0,0,0.6);background:#020a04;}
+/* 3D nav minimap overlay (raster mode draws its own into the main canvas) */
+.fp-mm{display:none;}
+body.nav-mode .fp-mm{display:block;position:fixed;right:14px;bottom:64px;z-index:20;opacity:0.95;border-radius:2px;}
+/* mobile: thumb controls own both bottom corners, so the radar moves to the
+   top-right (clear of the D-pad, the C/SAV/INV buttons, the top-centre compass
+   and the top-left stats). Desktop keeps the bottom-right radar. */
+@media (max-width:767px),(pointer:coarse){body.nav-mode .fp-mm{top:12px !important;right:12px !important;bottom:auto !important;}}
+body.nav-mode.nav-dialog .fp-mm{display:none !important;}
+/* ===== small UI refinements ===== */
+button:focus-visible,.choice-btn:focus-visible,.desk-btn:focus-visible{outline:1px solid var(--amber);outline-offset:2px;}
+body.nav-mode.nav-dialog #screen::-webkit-scrollbar{width:6px;}
+body.nav-mode.nav-dialog #screen::-webkit-scrollbar-thumb{background:var(--green-dim);border-radius:3px;}
+body.nav-mode.nav-dialog #screen::-webkit-scrollbar-track{background:transparent;}
+.fp-status{opacity:0.92;}
+@media(max-width:600px){body.nav-mode .fp-mm{right:8px;bottom:150px;}}
+
+.logo-canvas{filter:drop-shadow(0 0 9px rgba(84,255,138,.4)) drop-shadow(0 0 24px rgba(84,255,138,.16));animation:logoPulse 3.4s ease-in-out infinite}
+@keyframes logoPulse{0%,100%{filter:drop-shadow(0 0 8px rgba(84,255,138,.34)) drop-shadow(0 0 22px rgba(84,255,138,.13))}50%{filter:drop-shadow(0 0 13px rgba(84,255,138,.58)) drop-shadow(0 0 30px rgba(84,255,138,.25))}}
+
+.char-art.art-reveal{animation:artReveal .55s ease-out}
+@keyframes artReveal{0%{opacity:0;transform:translateY(14px) scale(.985);filter:brightness(2.4) saturate(.4)}60%{filter:brightness(1.35) saturate(.9)}100%{opacity:1;transform:none;filter:none}}
+
+/* ---- story mode: dialogue box + scene art (v1.9.0) ----
+   The story is told in the terminal's dialogue box (#screen). #storyArt fills
+   the space above it with the current scene illustration; #dlgName is the
+   amber speaker plate sitting on the box's top-left edge. Scoped so nav mode,
+   nav dialogs, minigames, and the drive keep their layouts untouched. */
+#storyArt{display:none;position:relative;flex:1 1 auto;min-height:0;overflow:hidden;align-items:center;justify-content:center}
+body.game-started:not(.nav-mode):not(.cv-driving) #storyArt{display:flex}
+#storyArt .story-scene{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0.9}
+#storyArt .story-scene svg{width:auto;max-width:94%;height:min(46vh,53vw,428px);height:min(46dvh,53vw,428px)}
+#storyArt .story-scene.scene-in{animation:sceneIn .6s ease-out}
+@keyframes sceneIn{0%{opacity:0;filter:brightness(2.2)}100%{opacity:0.9;filter:brightness(1)}}
+#storyArt .story-char{position:relative;z-index:2;pointer-events:none;filter:drop-shadow(0 0 22px rgba(80,255,140,.25))}
+#storyArt .story-char svg{height:clamp(150px,30vh,280px);width:auto;display:block}
+#storyArt .story-char.char-in{animation:artReveal .55s ease-out}
+#storyArt .story-char.glitch{animation:glitchJitter .55s steps(2,end) infinite}
+#dlgName{display:none;align-self:flex-start;margin:0 0 -13px 14px;position:relative;z-index:3;background:#020a04;border:2px solid var(--amber);color:var(--amber);padding:1px 14px;font-size:19px;letter-spacing:3px;text-shadow:0 0 8px rgba(255,176,0,.8)}
+body.game-started:not(.nav-mode):not(.cv-driving) #dlgName.show{display:inline-block}
+body.game-started:not(.nav-mode):not(.cv-driving) #screen{flex:0 0 auto;min-height:120px;max-height:34vh;max-height:34dvh;border:2px solid var(--green-dim);background:rgba(1,8,3,.82);box-shadow:0 0 20px rgba(20,120,60,.3),inset 0 0 24px rgba(4,40,16,.45);padding:12px 18px;margin-bottom:6px}
+@media (max-width:767px),(pointer:coarse){
+  #dlgName{font-size:15px;letter-spacing:2px;margin:0 0 -12px 10px;padding:1px 10px}
+  body.game-started:not(.nav-mode):not(.cv-driving) #screen{max-height:40vh;max-height:40dvh;min-height:100px;padding:10px 12px}
+  #storyArt .story-char svg{height:clamp(120px,24dvh,220px)}
+}
+@media (pointer:coarse) and (orientation:landscape),(max-height:500px) and (orientation:landscape){
+  body.game-started:not(.nav-mode):not(.cv-driving) #screen{max-height:52dvh;min-height:80px;padding:8px 12px}
+  #storyArt .story-scene svg{height:min(30vh,53vw,428px);height:min(30dvh,53vw,428px);max-height:100%}
+  #storyArt .story-char svg{height:clamp(90px,34dvh,180px)}
+  #dlgName{font-size:13px}
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MOBILE ORIENTATION FIX (v1.8.4)
+   Authoritative full-screen layout for nav + drive on touch devices. Appended
+   last so it wins the cascade over the earlier, conflicting full-screen rules.
+   Fixes: (1) landscape 3D viewport collapsing to 0×0 because the mobile-only
+   .fp-stage wrapper was an unsized inline-block and the absolute-inset canvas
+   had nothing to fill; (2) title/status shoved off-screen; (3) desktop
+   keyboard-hint / nav bar cluttering & overflowing the touch UI; (4) 100vh vs
+   the real dynamic viewport (controls hidden behind browser chrome / notch);
+   (5) object-fit:cover cropping the baked-in HUD.
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (max-width:767px),(pointer:coarse){
+  /* Kill the perspective tilt in game modes: a transformed ancestor makes
+     position:fixed children anchor to it instead of the real viewport, which
+     throws the on-glass controls off. Full-bleed, no padding. */
+  body.nav-mode .terminal, body.cv-driving .terminal{
+    transform:none !important; padding:0 !important;
+    width:100vw !important; max-width:100vw !important;
+  }
+  /* the decorative case-terminal header steals vertical space during gameplay */
+  body.nav-mode:not(.nav-dialog) .header, body.cv-driving .header{ display:none !important; }
+  body.nav-mode:not(.nav-dialog) #mapArea, body.cv-driving #mapArea{
+    width:100vw !important; height:100vh !important; height:100dvh !important;
+    max-height:100dvh !important; padding:0 !important; margin:0 !important;
+    border:0 !important; display:flex !important;
+    align-items:center !important; justify-content:center !important;
+    overflow:hidden !important;
+  }
+  body.nav-mode:not(.nav-dialog) .fp-wrap,
+  body.cv-driving .fp-wrap, body.cv-driving .cv-wrap{
+    position:relative !important; width:100vw !important;
+    height:100vh !important; height:100dvh !important;
+    max-width:100vw !important; gap:0 !important; padding:0 !important;
+  }
+  /* The mobile-only wrapper becomes the full-size positioning context so the
+     absolute-inset canvas actually has a box to fill. */
+  body.nav-mode:not(.nav-dialog) .fp-stage, body.cv-driving .fp-stage{
+    position:absolute !important; inset:0 !important; display:block !important;
+    width:100% !important; height:100% !important; max-width:none !important;
+    line-height:0 !important;
+  }
+  /* Letterbox the viewport (contain) so the baked-in HUD text is never cropped. */
+  body.nav-mode:not(.nav-dialog) .fp-canvas, body.cv-driving .cv-canvas{
+    position:absolute !important; inset:0 !important;
+    width:100% !important; height:100% !important;
+    max-width:none !important; max-height:none !important;
+    object-fit:contain !important; margin:0 !important;
+  }
+  /* Title + status become overlays so they never consume layout height (which
+     was pushing them off the top of the screen). */
+  body.nav-mode:not(.nav-dialog) .fp-title, body.cv-driving .cv-title{
+    position:absolute !important;
+    top:calc(env(safe-area-inset-top,0px) + 22px) !important;
+    left:0 !important; right:0 !important; text-align:center !important;
+    z-index:16 !important; pointer-events:none !important; margin:0 !important;
+  }
+  body.nav-mode:not(.nav-dialog) .fp-status{
+    position:absolute !important;
+    bottom:calc(env(safe-area-inset-bottom,0px) + 6px) !important;
+    left:50% !important; transform:translateX(-50%) !important;
+    max-width:60vw !important; z-index:16 !important; pointer-events:none !important;
+    margin:0 !important; background:rgba(2,10,5,0.55);
+    padding:2px 10px !important; border-radius:5px;
+  }
+  /* The desktop keyboard-hint bar and the duplicate #mobileNav dock are
+     redundant with the on-glass touch controls — remove them in game modes so
+     they can't overflow or overlap. Choices during dialogue are unaffected. */
+  body.nav-mode:not(.nav-dialog) #navRow,
+  body.nav-mode:not(.nav-dialog) #cmdList,
+  body.nav-mode:not(.nav-dialog) #mobileNav,
+  body.cv-driving #navRow, body.cv-driving .cv-cmds,
+  body.cv-driving .cv-bottombar{ display:none !important; }
+
+  /* on-glass touch controls are viewport-fixed in both game modes */
+  body.nav-mode:not(.nav-dialog) .fp-pad,
+  body.nav-mode:not(.nav-dialog) .fp-acts,
+  body.cv-driving .cv-steer, body.cv-driving .cv-pedals,
+  body.cv-driving .cv-acts-top{ position:fixed !important; z-index:42 !important; }
+
+  /* ── LANDSCAPE: game fills the screen, controls hug the bottom corners ── */
+  @media (orientation:landscape){
+    body.nav-mode:not(.nav-dialog) .fp-pad{
+      left:calc(env(safe-area-inset-left,0px) + 2.5vw) !important; right:auto !important;
+      bottom:calc(env(safe-area-inset-bottom,0px) + 5vh) !important;
+      width:min(34vh,150px) !important; height:min(34vh,150px) !important;
+    }
+    body.nav-mode:not(.nav-dialog) .fp-acts{
+      right:calc(env(safe-area-inset-right,0px) + 2.5vw) !important; left:auto !important;
+      bottom:calc(env(safe-area-inset-bottom,0px) + 5vh) !important;
+      width:min(22vh,96px) !important; height:min(42vh,180px) !important;
+    }
+    body.cv-driving .cv-steer{
+      left:calc(env(safe-area-inset-left,0px) + 2.5vw) !important; right:auto !important;
+      bottom:calc(env(safe-area-inset-bottom,0px) + 4vh) !important;
+    }
+    body.cv-driving .cv-pedals{
+      right:calc(env(safe-area-inset-right,0px) + 2.5vw) !important; left:auto !important;
+      bottom:calc(env(safe-area-inset-bottom,0px) + 4vh) !important;
+    }
+    body.cv-driving .cv-acts-top{
+      left:calc(env(safe-area-inset-left,0px) + 2.5vw) !important; right:auto !important;
+      top:calc(env(safe-area-inset-top,0px) + 2vh) !important; transform:none !important;
+    }
+  }
+  /* ── PORTRAIT: game strip hugs the top, controls dock across the bottom ── */
+  @media (orientation:portrait){
+    /* pin the letterboxed view to the top so the lower band is free for the
+       thumb controls instead of a dead centred gap */
+    body.nav-mode:not(.nav-dialog) .fp-canvas, body.cv-driving .cv-canvas{
+      object-position:center top !important;
+    }
+    /* status sits just under the game strip (its height == 56.25vw when the
+       16:9 view is width-limited), well above the corner controls */
+    body.nav-mode:not(.nav-dialog) .fp-status{
+      bottom:auto !important;
+      top:calc(env(safe-area-inset-top,0px) + 56.25vw + 6px) !important;
+      transform:translateX(-50%) !important; max-width:92vw !important;
+    }
+    body.nav-mode:not(.nav-dialog) .fp-pad{
+      left:calc(env(safe-area-inset-left,0px) + 4vw) !important; right:auto !important;
+      bottom:calc(env(safe-area-inset-bottom,0px) + 3vh) !important;
+      width:42vw !important; height:42vw !important; max-width:210px; max-height:210px;
+    }
+    body.nav-mode:not(.nav-dialog) .fp-acts{
+      right:calc(env(safe-area-inset-right,0px) + 4vw) !important; left:auto !important;
+      bottom:calc(env(safe-area-inset-bottom,0px) + 3vh) !important;
+      width:24vw !important; height:46vw !important; max-width:120px; max-height:230px;
+    }
+    body.cv-driving .cv-steer{
+      left:calc(env(safe-area-inset-left,0px) + 4vw) !important; right:auto !important;
+      bottom:calc(env(safe-area-inset-bottom,0px) + 2.5vh) !important;
+    }
+    body.cv-driving .cv-pedals{
+      right:calc(env(safe-area-inset-right,0px) + 4vw) !important; left:auto !important;
+      bottom:calc(env(safe-area-inset-bottom,0px) + 2.5vh) !important;
+    }
+    body.cv-driving .cv-acts-top{
+      left:50% !important; right:auto !important; transform:translateX(-50%) !important;
+      top:calc(env(safe-area-inset-top,0px) + 1vh) !important;
+    }
+  }
+}
+
+</style></head><body><svg width="0" height="0" style="position:absolute"><defs><filter id="crtCurve"><feImage xlink:href="" /></filter></defs></svg><div id="crtPowerOn" class=""><div class="crtFlash"></div></div><div id="crtVignette"></div><div id="redVignette"></div><div id="boot"></div><div id="padToast"></div><div class="crt"><div class="terminal"><div class="header"><span>DUDLEY PD // CASE TERMINAL // CLIVEMAN.EXE</span><span><button id="pauseBtn" class="pause-btn" type="button">☰</button><button id="fsBtn" class="fs-btn" type="button">[ FULLSCREEN ]</button>
+SECURE LINK <span class="blink">█</span></span></div><div id="mapArea"></div><div id="storyArt"></div><div id="dlgName"></div><div id="screen"></div><div id="choicePanel"></div><div id="mobileNav"><button class="mobile-btn" id="navCheckBtn" type="button">C</button><button class="mobile-btn" id="navSaveBtn" type="button">SAV</button><button class="mobile-btn" id="navInvBtn" type="button">INV</button></div><div id="navRow"><div id="cmdList"></div><div id="desktopNav"><button class="desk-btn" id="deskCheckBtn" type="button">&#x1F50D; CHECK</button><div id="deskBtnGroup"><button class="desk-btn desk-btn-save" id="deskSaveBtn" type="button">&#x1F4BE; SAVE</button><button class="desk-btn" id="deskInvBtn" type="button">&#x1F392; INV</button></div><div id="deskPadGroup" style="display:none"></div><span id="padPrompt" class="pad-hint"></span></div></div><div id="inputRow" class="input-row" style="display:none"><span class="prompt">C:\DUDLEY&gt;</span><input id="cmd" autocomplete="off" spellcheck="false" autocapitalize="off" autofocus><span class="caret"></span></div></div></div><div id="finaleOverlay"><canvas id="fwCanvas"></canvas><div id="finaleNameWrap"><div id="finaleName"></div><div id="finaleSubtitle"></div></div><audio id="easterEggAudio" preload="none" loop></audio><div id="staticOverlay"><canvas id="staticCanvas"></canvas><div id="signalLostText">信号丢失</div></div></div>  <!-- ══════════════════════════════════════════════════════════════════
+     LOAD ORDER IS THE MODULE SYSTEM. Classic scripts, one shared global
+     scope, no bundler. Order: i18n core (which pulls in the ONE active
+     language dictionary, if any) -> Three.js
+     -> tamper guard -> engine (dom-refs first: version + fault trap) ->
+     story chapters -> menus -> boot.js (calls boot() and starts the game)
+     -> Crown Vic drive bundle. Do not reorder. anti-tamper.js may be
+     commented out safely while developing.
+     ══════════════════════════════════════════════════════════════════ -->
+<script src="engine/i18n/core.js"></script>
+<script src="engine/three.global.js"></script>
+<script src="engine/title-flyover.js"></script>
+<script src="engine/anti-tamper.js"></script>
+<script src="engine/dom-refs.js"></script>
+<script src="engine/audio.js"></script>
+  <script src="engine/stings.js"></script>
+<script src="engine/voice.js"></script>
+<script src="engine/cutscene.js"></script>
+<script src="engine/story-art.js"></script>
+<script src="engine/music-classical.js"></script>
+<script src="engine/save-state.js"></script>
+<script src="engine/ui-core.js"></script>
+<script src="engine/compass.js"></script>
+<script src="engine/minimap.js"></script>
+<script src="engine/transitions.js"></script>
+<script src="engine/raycaster.js"></script>
+<script src="engine/handmodel.js"></script>
+<script src="engine/nav3d.js"></script>
+<script src="engine/controls-ui.js"></script>
+<script src="story/title.js"></script>
+<script src="story/ch1.js"></script>
+<script src="story/ch2.js"></script>
+<script src="story/minigames.js"></script>
+<script src="story/ch3.js"></script>
+<script src="engine/menus.js"></script>
+<script src="engine/boot.js"></script>
+<!-- minigame/clivesbuick.bundle.js is NOT loaded here: it is 2.4 MB and only
+     needed when a night drive actually starts. engine/transitions.js pulls it
+     in on demand (and prefetches it when the browser goes idle). -->
 </body></html>
