@@ -206,7 +206,8 @@ var hudSpeed=document.createElement('div'); hudSpeed.className='cv-speed'; hudSp
 var _mmS=IS_MOBILE?92:150;
 var _mm=document.createElement('canvas'); _mm.className='cv-mm'; _mm.width=_mm.height=_mmS; wrap.appendChild(_mm);
 var _mmx=_mm.getContext('2d');
-var _MM_WR=140;   // world units from centre to the radar edge (zoom)
+var _MM_BASE_WR=IS_MOBILE?118:136; // world units from centre to radar edge at rest
+var _mmWorldRadius=_MM_BASE_WR;    // eases wider at speed for better look-ahead
 var loading={style:{},textContent:''};
 parent.innerHTML=''; parent.appendChild(wrap);
 if(opts.startHint)showBubble(opts.startHint);
@@ -373,7 +374,13 @@ for (let i=0;i<N;i++){
       cityGroup.add(lm);
       let hx = church ? 6 : 10, hz = church ? 10 : 8;
       if (f & 1){ const t = hx; hx = hz; hz = t; }
-      buildings.push({ x0:cx-hx, x1:cx+hx, z0:cz-hz, z1:cz+hz });
+      buildings.push({
+        x0:cx-hx, x1:cx+hx, z0:cz-hz, z1:cz+hz,
+        kind: church ? 'church' : 'grocery',
+        rot: f,
+        height: church ? 25 : 8,
+        spire: !!church
+      });
       continue;
     }
     const h = 12 + Math.pow(Math.random(),1.8)*52;
@@ -386,6 +393,7 @@ for (let i=0;i<N;i++){
     b.scale.set(HE*2, h, HE*2);
     b.position.set(cx, h/2, cz);
     cityGroup.add(b);
+    let hasSpire = false;
     if (h > 38 && Math.random() < 0.3){
       const sh = 6 + Math.random()*14;
       const sp = new THREE.Mesh(spireGeo, spireMat);
@@ -393,8 +401,9 @@ for (let i=0;i<N;i++){
       sp.position.set(cx, h, cz);
       cityGroup.add(sp);
       spireTips.push(cx, h + sh, cz);
+      hasSpire = true;
     }
-    buildings.push({ x0:cx-HE, x1:cx+HE, z0:cz-HE, z1:cz+HE });
+    buildings.push({ x0:cx-HE, x1:cx+HE, z0:cz-HE, z1:cz+HE, kind:'tower', height:h, spire:hasSpire });
   }
 }
 scene.add(cityGroup);
@@ -484,6 +493,11 @@ const roadMatEW = roadMatNS.clone(); roadMatEW.map = roadMatNS.map; // share
 
 const streetCenters = [];
 for (let k=0;k<=N;k++) streetCenters.push(offset - PITCH/2 + k*PITCH);
+// Exact district footprint. Keep world collision, objective placement, and the
+// radar on this single source of truth so none of them imply a larger city than
+// the one that was actually generated.
+const CITY_MIN = streetCenters[0] - ROAD/2;
+const CITY_MAX = streetCenters[streetCenters.length-1] + ROAD/2;
 const roadGeoV = new THREE.PlaneGeometry(ROAD, span);
 for (const cxz of streetCenters){
   const ns = new THREE.Mesh(roadGeoV, roadMatNS);   // runs along Z
@@ -643,10 +657,12 @@ function showSaveBox(box){
   if(_saveTimer)clearTimeout(_saveTimer);
   _saveTimer=setTimeout(function(){ if(_saveOverlay===ov){ try{ov.parentNode.removeChild(ov);}catch(e){} _saveOverlay=null; } }, 6500);
 }
-function onKeyDown(e){ var k=e.key.toLowerCase(); if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault(); if(k==='p'){ e.preventDefault(); doSave(); return; } keys[k]=true; startEngineAudio(); }
+function onKeyDown(e){ if(window._gamePaused)return; var k=e.key.toLowerCase(); if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault(); if(k==='p'){ e.preventDefault(); doSave(); return; } keys[k]=true; startEngineAudio(); }
 function onKeyUp(e){ keys[e.key.toLowerCase()]=false; }
 window.addEventListener('keydown', onKeyDown);
 window.addEventListener('keyup', onKeyUp);
+function onPauseChange(){ if(window._gamePaused){ for(var k in keys)keys[k]=false; _padSavePrev=false; stopEngineAudio(); } }
+document.addEventListener('clivepausechange',onPauseChange);
 /* on-screen touch buttons would go here later; keyboard + gamepad for now */
 
 // ---------- physics ----------
@@ -655,6 +671,9 @@ let heading = 0;                         // forward = (sin,0,cos)
 let speed = 0;
 const MAX_FWD = 30, MAX_REV = 11, ACCEL = 26, BRAKE = 42, DRAG = 9, TURN = 2.0;
 const CAR_HL = 2.15, CAR_HW = 0.95, CAR_SKIN = 0.12;   // car half-length / half-width / small skin
+const CAR_RADIUS = Math.hypot(CAR_HL + CAR_SKIN, CAR_HW + CAR_SKIN);
+const DRIVE_MIN = CITY_MIN + CAR_RADIUS;
+const DRIVE_MAX = CITY_MAX - CAR_RADIUS;
 // Footprint sample offsets (in half-extent units): 4 corners + front/back + side centres.
 const FOOT_OFFS = [[1,1],[1,-1],[-1,1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
 // Deepest overlap (0 = free) of the car's rotated rectangular footprint with any
@@ -699,13 +718,35 @@ const camLook = new THREE.Vector3();
 camera.aspect = CW/CH; camera.updateProjectionMatrix();
 
 
-/* ===== GOAL: glowing red marker, far from spawn, on a road beside a building =====
-   Derived from the grid, not hardcoded: the road intersection between building
-   rows N-3 and N-2. On desktop (N=18) this is the old (238,238); on mobile
-   (N=12, the 1.8.6 GPU cut) it lands at (136,136) INSIDE the smaller city —
-   the hardcoded 238 used to float outside the mobile map on empty ground. */
-const GOAL_C = offset + (N - 3) * PITCH + PITCH / 2;
-const GOAL = new THREE.Vector3(GOAL_C, 0, GOAL_C);
+/* ===== GOAL: glowing red marker, far from spawn, on an INTERIOR road =====
+   Every drive destination gets a deterministic intersection based on its label.
+   Candidate streets leave a two-block perimeter buffer and must be far enough
+   from the spawn to remain a meaningful drive. This keeps Big Smiles, Bevan's
+   apartment, Pete's Subs, and future objectives inside both desktop and mobile
+   city boundaries without making every trip end at the same corner. */
+function goalHash(text){
+  var h=2166136261, s=(''+(text||'DESTINATION')).toUpperCase();
+  for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
+  return h>>>0;
+}
+function chooseGoalPoint(label){
+  var margin=2, first=margin, last=streetCenters.length-1-margin;
+  var minTrip=PITCH*Math.max(4,Math.floor(N*0.45));
+  var candidates=[];
+  for(var ix=first;ix<=last;ix++){
+    for(var iz=first;iz<=last;iz++){
+      var x=streetCenters[ix], z=streetCenters[iz];
+      if(Math.abs(x)+Math.abs(z)>=minTrip)candidates.push([x,z]);
+    }
+  }
+  if(!candidates.length){
+    var safe=streetCenters[Math.max(first,Math.min(last,streetCenters.length-3))];
+    return [safe,safe];
+  }
+  return candidates[goalHash(label)%candidates.length];
+}
+const _goalPoint=chooseGoalPoint(opts.goalKey||opts.destLabel||opts.title);
+const GOAL = new THREE.Vector3(_goalPoint[0], 0, _goalPoint[1]);
 var _goalPulse=function(){};
 (function(){
   const ringGeo=new THREE.TorusGeometry(3.6,0.55,12,44);
@@ -756,38 +797,122 @@ function routeToGoal(){
   var fx=Math.sin(heading), fz=Math.cos(heading);
   return firstDot(A,fx,fz)>=firstDot(B,fx,fz)?A:B;
 }
+
+function _mmWorldPoly(b){
+  var shape = b.kind==='church'
+    ? [[-0.34,-0.5],[0.34,-0.5],[0.34,-0.12],[0.18,-0.12],[0.18,0.5],[-0.18,0.5],[-0.18,-0.12],[-0.34,-0.12]]
+    : b.kind==='grocery'
+      ? [[-0.5,-0.5],[0.5,-0.5],[0.5,0.22],[0.14,0.22],[0.14,0.5],[-0.14,0.5],[-0.14,0.22],[-0.5,0.22]]
+      : [[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]];
+  var cx=(b.x0+b.x1)*0.5, cz=(b.z0+b.z1)*0.5, sx=b.x1-b.x0, sz=b.z1-b.z0, rot=(b.rot||0)&3;
+  var out=new Array(shape.length);
+  for(var i=0;i<shape.length;i++){
+    var px=shape[i][0]*sx, pz=shape[i][1]*sz, t;
+    if(rot===1){ t=px; px=pz; pz=-t; }
+    else if(rot===2){ px=-px; pz=-pz; }
+    else if(rot===3){ t=px; px=-pz; pz=t; }
+    out[i]=[cx+px,cz+pz];
+  }
+  return out;
+}
+function _mmInsetPoly(poly,t){
+  var cx=0, cz=0;
+  for(var i=0;i<poly.length;i++){ cx+=poly[i][0]; cz+=poly[i][1]; }
+  cx/=poly.length; cz/=poly.length;
+  var out=new Array(poly.length);
+  for(var j=0;j<poly.length;j++)out[j]=[cx+(poly[j][0]-cx)*t, cz+(poly[j][1]-cz)*t];
+  return out;
+}
+function _mmHeight01(b){ return Math.max(0,Math.min(1,((b.height||18)-8)/56)); }
+function _mmBuildingFill(b,h01){
+  if(b.kind==='church') return 'rgb(30,42,34)';
+  if(b.kind==='grocery') return 'rgb(26,38,31)';
+  var shade=20+Math.round(h01*24);
+  return 'rgb('+shade+','+(shade+10)+','+(shade+6)+')';
+}
+function _mmRoofFill(b,h01){
+  if(b.kind==='church') return 'rgba(86,110,96,0.66)';
+  if(b.kind==='grocery') return 'rgba(74,96,82,0.66)';
+  var shade=60+Math.round(h01*40);
+  return 'rgba('+shade+','+(shade+16)+','+(shade+8)+',0.64)';
+}
 /* ===== GTA-IV-style radar: circular, rotates so the car heading is up, drawing
    the road grid + building blocks, the player chevron, and the destination. ===== */
 function drawMiniMap(){
   if(!_mmx)return;
-  var S=_mmS, cx=S/2, cy=S/2, r=S/2-2, scale=r/_MM_WR;
+  // Ease the radar slightly wider at speed instead of popping between zooms.
+  // At rest it stays close enough to read individual blocks; at top speed the
+  // extra context makes upcoming turns easier to anticipate.
+  var wantedWR=_MM_BASE_WR+Math.min(IS_MOBILE?24:32,Math.abs(speed)*0.9);
+  _mmWorldRadius+=(wantedWR-_mmWorldRadius)*0.08;
+  var S=_mmS, cx=S/2, cy=S/2, r=S/2-2, scale=r/_mmWorldRadius;
   var sh=Math.sin(heading), chd=Math.cos(heading);
   // world (x,z) -> radar screen, heading-up: forward=(sin,cos)=up, right=(cos,-sin)
   function P(wx,wz){ var dx=wx-pos.x, dz=wz-pos.z; var ahead=dx*sh+dz*chd, right=dx*chd-dz*sh; return [cx+right*scale, cy-ahead*scale]; }
-  var lim=_MM_WR+PITCH;
+  var lim=_mmWorldRadius+PITCH;
   _mmx.save();
   // soft dark rim, then clip to the disc
   _mmx.beginPath(); _mmx.arc(cx,cy,r+1.5,0,Math.PI*2); _mmx.fillStyle='rgba(0,0,0,0.55)'; _mmx.fill();
   _mmx.beginPath(); _mmx.arc(cx,cy,r,0,Math.PI*2); _mmx.clip();
-  // ground base
-  _mmx.fillStyle='#0a120c'; _mmx.fillRect(0,0,S,S);
-  // building blocks (dark, faint edge)
-  _mmx.strokeStyle='rgba(120,180,140,0.16)'; _mmx.lineWidth=1;
+  // Outside the generated district stays nearly black. The transformed city
+  // footprint is filled separately, so roads visibly stop at the real limits.
+  _mmx.fillStyle='#030604'; _mmx.fillRect(0,0,S,S);
+  var cityA=P(CITY_MIN,CITY_MIN), cityB=P(CITY_MAX,CITY_MIN), cityC=P(CITY_MAX,CITY_MAX), cityD=P(CITY_MIN,CITY_MAX);
+  _mmx.beginPath(); _mmx.moveTo(cityA[0],cityA[1]); _mmx.lineTo(cityB[0],cityB[1]); _mmx.lineTo(cityC[0],cityC[1]); _mmx.lineTo(cityD[0],cityD[1]); _mmx.closePath();
+  _mmx.fillStyle='#0a120c'; _mmx.fill();
+  // Building silhouettes take their cue from the actual generated lots:
+  // churches and stores get their own footprint profiles, while taller blocks
+  // gain a soft rooftop inset and shadow so the radar has some depth without
+  // becoming cluttered.
+  _mmx.lineWidth=1;
   for(var n=0;n<buildings.length;n++){ var b=buildings[n];
     var bcx=(b.x0+b.x1)*0.5, bcz=(b.z0+b.z1)*0.5;
     if(Math.abs(bcx-pos.x)>lim||Math.abs(bcz-pos.z)>lim)continue;
-    var a=P(b.x0,b.z0),c=P(b.x1,b.z0),d=P(b.x1,b.z1),e=P(b.x0,b.z1);
-    _mmx.beginPath();_mmx.moveTo(a[0],a[1]);_mmx.lineTo(c[0],c[1]);_mmx.lineTo(d[0],d[1]);_mmx.lineTo(e[0],e[1]);_mmx.closePath();
-    _mmx.fillStyle='#16241b'; _mmx.fill(); _mmx.stroke();
+    var poly=_mmWorldPoly(b), h01=_mmHeight01(b), roof=_mmInsetPoly(poly,b.kind==='church'?0.62:(b.kind==='grocery'?0.76:(0.76-h01*0.12)));
+    var shadowDX=0.7+h01*1.8, shadowDY=0.5+h01*1.3;
+    _mmx.beginPath();
+    for(var pi=0;pi<poly.length;pi++){
+      var sp=P(poly[pi][0],poly[pi][1]);
+      if(!pi)_mmx.moveTo(sp[0]+shadowDX,sp[1]+shadowDY); else _mmx.lineTo(sp[0]+shadowDX,sp[1]+shadowDY);
+    }
+    _mmx.closePath();
+    _mmx.fillStyle='rgba(0,0,0,'+(0.18+h01*0.18)+')';
+    _mmx.fill();
+    _mmx.beginPath();
+    for(var pi=0;pi<poly.length;pi++){
+      var bp=P(poly[pi][0],poly[pi][1]);
+      if(!pi)_mmx.moveTo(bp[0],bp[1]); else _mmx.lineTo(bp[0],bp[1]);
+    }
+    _mmx.closePath();
+    _mmx.fillStyle=_mmBuildingFill(b,h01); _mmx.fill();
+    _mmx.strokeStyle='rgba(124,182,146,'+(0.16+h01*0.16)+')'; _mmx.stroke();
+    _mmx.beginPath();
+    for(var ri=0;ri<roof.length;ri++){
+      var rp=P(roof[ri][0],roof[ri][1]);
+      if(!ri)_mmx.moveTo(rp[0],rp[1]); else _mmx.lineTo(rp[0],rp[1]);
+    }
+    _mmx.closePath();
+    _mmx.fillStyle=_mmRoofFill(b,h01); _mmx.fill();
+    if(b.spire){
+      var rx=0, rz=0;
+      for(var si=0;si<roof.length;si++){ rx+=roof[si][0]; rz+=roof[si][1]; }
+      rx/=roof.length; rz/=roof.length;
+      var top=P(rx,rz);
+      _mmx.fillStyle='rgba(255,88,62,0.68)'; _mmx.beginPath(); _mmx.arc(top[0],top[1],1.1+h01*0.8,0,Math.PI*2); _mmx.fill();
+    }
   }
-  // roads (light channels) on top, one strip per street centre in both axes
+  // Roads are bounded to the actual district instead of extending infinitely
+  // when the player approaches the perimeter.
   _mmx.strokeStyle='#3b4a3d'; _mmx.lineWidth=Math.max(2,ROAD*scale); _mmx.lineCap='butt';
   _mmx.beginPath();
   for(var k=0;k<streetCenters.length;k++){ var sc2=streetCenters[k];
-    if(Math.abs(sc2-pos.x)<lim){ var v0=P(sc2,pos.z-lim), v1=P(sc2,pos.z+lim); _mmx.moveTo(v0[0],v0[1]); _mmx.lineTo(v1[0],v1[1]); }
-    if(Math.abs(sc2-pos.z)<lim){ var w0=P(pos.x-lim,sc2), w1=P(pos.x+lim,sc2); _mmx.moveTo(w0[0],w0[1]); _mmx.lineTo(w1[0],w1[1]); }
+    if(Math.abs(sc2-pos.x)<lim){ var v0=P(sc2,CITY_MIN), v1=P(sc2,CITY_MAX); _mmx.moveTo(v0[0],v0[1]); _mmx.lineTo(v1[0],v1[1]); }
+    if(Math.abs(sc2-pos.z)<lim){ var w0=P(CITY_MIN,sc2), w1=P(CITY_MAX,sc2); _mmx.moveTo(w0[0],w0[1]); _mmx.lineTo(w1[0],w1[1]); }
   }
   _mmx.stroke();
+  // District boundary: subtle but useful when the outer roads enter the radar.
+  _mmx.beginPath(); _mmx.moveTo(cityA[0],cityA[1]); _mmx.lineTo(cityB[0],cityB[1]); _mmx.lineTo(cityC[0],cityC[1]); _mmx.lineTo(cityD[0],cityD[1]); _mmx.closePath();
+  _mmx.strokeStyle='rgba(180,215,190,0.24)'; _mmx.lineWidth=1; _mmx.stroke();
   // destination: GPS route hugging the street grid (no clipping through blocks)
   var route=routeToGoal();
   _mmx.strokeStyle='rgba(255,42,26,0.8)'; _mmx.lineWidth=Math.max(2.5,ROAD*scale*0.42);
@@ -804,6 +929,11 @@ function drawMiniMap(){
   _mmx.restore();
   // border ring
   _mmx.beginPath(); _mmx.arc(cx,cy,r,0,Math.PI*2); _mmx.strokeStyle='rgba(206,224,214,0.5)'; _mmx.lineWidth=1.5; _mmx.stroke();
+  // North tick rotates around the rim while the map itself stays heading-up.
+  var north=P(pos.x,pos.z+_mmWorldRadius), ndx=north[0]-cx, ndy=north[1]-cy, nm=Math.hypot(ndx,ndy)||1;
+  _mmx.font='bold '+Math.max(8,Math.round(S*0.075))+'px "Courier New", monospace';
+  _mmx.textAlign='center'; _mmx.textBaseline='middle'; _mmx.fillStyle='rgba(220,235,225,0.78)';
+  _mmx.fillText('N',cx+ndx/nm*(r-8),cy+ndy/nm*(r-8));
   // player chevron, pinned to centre, pointing up
   var ps=Math.max(4,S*0.085);
   _mmx.save(); _mmx.translate(cx,cy);
@@ -877,12 +1007,13 @@ theCanvas.addEventListener('webglcontextlost', function(e){
 // frame ever renders, without firing webglcontextlost. If nothing has drawn after
 // 4s, bail to the fallback rather than sit on a black canvas.
 setTimeout(function(){ if(_running && !_firstFrame){ cleanup(); resolve('stalled'); } }, 4000);
-function cleanup(){ _running=false; if(window.CMCOMPASS)CMCOMPASS.unmount(); if(_saveTimer)clearTimeout(_saveTimer); window.removeEventListener('keydown',onKeyDown); window.removeEventListener('keyup',onKeyUp); stopEngineAudio(); try{renderer.dispose();}catch(e){} try{ if(renderer&&renderer.forceContextLoss) renderer.forceContextLoss(); }catch(e){} if(wrap&&wrap.parentNode)wrap.parentNode.removeChild(wrap); if(bottomBar&&bottomBar.parentNode)bottomBar.parentNode.removeChild(bottomBar); }
+function cleanup(){ _running=false; if(window.CMCOMPASS)CMCOMPASS.unmount(); if(_saveTimer)clearTimeout(_saveTimer); window.removeEventListener('keydown',onKeyDown); window.removeEventListener('keyup',onKeyUp); document.removeEventListener('clivepausechange',onPauseChange); stopEngineAudio(); try{renderer.dispose();}catch(e){} try{ if(renderer&&renderer.forceContextLoss) renderer.forceContextLoss(); }catch(e){} if(wrap&&wrap.parentNode)wrap.parentNode.removeChild(wrap); if(bottomBar&&bottomBar.parentNode)bottomBar.parentNode.removeChild(bottomBar); }
 
 let last = performance.now();
 function tick(now){
   if(!_running)return;
   try{
+  if(window._gamePaused){last=now;requestAnimationFrame(tick);return;}
   const dt = Math.min(0.05, (now - last)/1000); last = now;
   const up = keys['arrowup']||keys['w'];
   const down = keys['arrowdown']||keys['s'];
@@ -955,12 +1086,11 @@ function tick(now){
     pos.x += _push.x*_m; pos.z += _push.z*_m;
   }
 
-  // ---- city limits: don't let the player drive off into the void ----
-  const LIM = -offset + HE + 14;
-  if (pos.x >  LIM) { pos.x =  LIM; speed *= 0.2; hit=true; }
-  else if (pos.x < -LIM) { pos.x = -LIM; speed *= 0.2; hit=true; }
-  if (pos.z >  LIM) { pos.z =  LIM; speed *= 0.2; hit=true; }
-  else if (pos.z < -LIM) { pos.z = -LIM; speed *= 0.2; hit=true; }
+  // ---- city limits: keep the ENTIRE rotated car inside the generated roads ----
+  if (pos.x > DRIVE_MAX) { pos.x = DRIVE_MAX; speed *= 0.2; hit=true; }
+  else if (pos.x < DRIVE_MIN) { pos.x = DRIVE_MIN; speed *= 0.2; hit=true; }
+  if (pos.z > DRIVE_MAX) { pos.z = DRIVE_MAX; speed *= 0.2; hit=true; }
+  else if (pos.z < DRIVE_MIN) { pos.z = DRIVE_MIN; speed *= 0.2; hit=true; }
 
   carRig.position.set(pos.x, 0, pos.z);
   carRig.rotation.y = heading;

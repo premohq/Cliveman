@@ -1,7 +1,7 @@
 /* ============================================================================
    tools/test_render_pixels.js
 
-   Proves a change to engine/raycaster.js or engine/minimap.js is output-
+   Proves a change to engine/raycaster.js or engine/navigation-hud.js is output-
    identical to a reference copy of the game. Any optimization in the render
    path should go through this before it ships.
 
@@ -74,7 +74,7 @@ window.__radar=function(){
       const errs=[]; page.on('pageerror',e=>errs.push(String(e).split('\n')[0]));
       await page.setContent(PAGE(
         fs.readFileSync(path.join(dir,'engine/raycaster.js'),'utf8'),
-        fs.readFileSync(path.join(dir,'engine/minimap.js'),'utf8'), isMobile));
+        fs.readFileSync(path.join(dir,'engine/navigation-hud.js'),'utf8'), isMobile));
       got[tag]={walls:await page.evaluate(()=>window.__walls()),
                 radar:await page.evaluate(()=>window.__radar())};
       if(errs.length) console.log(`  [${tag}] page errors: ${errs.slice(0,3).join(' | ')}`);

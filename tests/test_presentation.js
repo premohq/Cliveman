@@ -53,6 +53,8 @@ chk('untagged monologue 2 -> null',C('"Well, I got everything discernible from t
 chk('untagged shout -> null',C('"AND THEY\'RE OFF!"')===null);
 chk('bare name still works',C('Bevan')==='#58b7ff',C('Bevan'));
 chk('bare unknown name still colors',typeof C('Hollis')==='string');
+chk('Chinese full-width speaker prefix colors',typeof C('贝文："你好。"')==='string');
+chk('Chinese full-width prefix reaches voice parser',w.VOICE._speakerOf('贝文："你好。"','speaker')==='贝文',w.VOICE._speakerOf('贝文："你好。"','speaker'));
 
 console.log('\n=== FIX 2b: name plate retires on any non-named line ===');
 const plate=w.document.getElementById('dlgName');
@@ -73,6 +75,15 @@ chk('press-continue retires plate',!shown());
 w.setDlgName('Bevan: "Hello."','speaker');
 w.setDlgName('some narration','narration');
 chk('narration still retires plate',!shown());
+w.document.body.className='game-started nav-mode nav-dialog';
+const navStripped=w.setDlgName('Bevan: "Nav hello."','speaker');
+chk('nav-dialog raises speaker plate',shown()&&plate.textContent==='BEVAN',plate.textContent);
+chk('nav-dialog strips speaker prefix',navStripped==='"Nav hello."',JSON.stringify(navStripped));
+chk('nav-dialog CSS displays plate',w.getComputedStyle(plate).display==='inline-block',w.getComputedStyle(plate).display);
+const zhStripped=w.setDlgName('贝文："你好。"','speaker');
+chk('Chinese full-width prefix raises plate',shown()&&plate.textContent==='贝文',plate.textContent);
+chk('Chinese full-width prefix strips cleanly',zhStripped==='"你好。"',JSON.stringify(zhStripped));
+w.document.body.className='game-started';
 
 console.log('\n=== FIX 3: character figure retires on scene change ===');
 w.STORYART.clear();
@@ -91,9 +102,9 @@ const boxes=[];
 // SAVE FILE WRITTEN
 w.URL.createObjectURL=()=>'blob:x'; w.URL.revokeObjectURL=()=>{};
 boxes.push(['SAVE FILE WRITTEN',w.showSaveCode()]);
-// pull the two title.js boxes out of source and evaluate the ACCEPTED row for every legal cp
-const src=fs.readFileSync(path.join(ROOT,'story/title.js'),'utf8');
-const loadBox=src.match(/const box='(  \+=+\+\\n[\s\S]*?)';/)[1].replace(/\\n'\s*\+'/g,'\n');
+// loadScreen renders its box synchronously before waiting for file input.
+w.loadScreen();
+const loadBox=[...w.document.querySelectorAll('#screen .savebox')].at(-1).textContent;
 boxes.push(['LOAD SAVE FILE',loadBox]);
 for(const cp of [1,2,3,4,5,6,7]){
   const _cpRow='   Checkpoint: '+cp+' - Loading your position...';

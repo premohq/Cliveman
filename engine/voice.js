@@ -179,7 +179,7 @@ function voiceFor(name,prof){
 
 /* ---- line parsing / cleaning -------------------------------------------- */
 /* speaker lines look like:  Cliveman: "..."   Detective Bevan: "..."       */
-var SPEAKER_RE=/^\s*([^:"]{2,30}):\s+/;
+var SPEAKER_RE=window.CLIVE_SPEAKER_RE||/^\s*([^:"：]{2,30})[:：]\s*/;
 function normName(raw){return raw.toLowerCase().replace(/\s+/g,' ').trim();}
 function speakerOf(text,cls){
   if(cls==='narration')return '__narrator';

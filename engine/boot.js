@@ -60,12 +60,14 @@ async function debugMenu(){
     state.ch2_poison     = false;
     state.resumeRoomId   = -1;
     state.resumePos      = null;
+    state.resumeHeading  = null;
     state.money          = 0;
     state.mechanicPaid   = false;
     state.enemiesBeat    = 0;
     state.level          = 1;
     state.secretEnding   = false;
     state.heading        = 0;
+    state.atDriveStart   = false;
 
     clearScreen();
     instantLine('  [DEBUG] LOADING: '+pick.toUpperCase()+' ...','sys');
@@ -176,4 +178,4 @@ async function debugMenu(){
   }
 }
 
-async function boot(){const powerOnEl=document.getElementById('crtPowerOn');if(powerOnEl){powerOnEl.classList.add('warming');await sleep(1450);powerOnEl.style.display='none';}const lines=['DUDLEY PD MAINFRAME // POST v3.14','CPU....... 80486DX2 @ 66MHz   [OK]','MEMORY.... 16384 KB           [OK]','HDD....... 540 MB             [OK]','NETWORK... DIAL-UP            [OK]','','LOADING CASE FILE: CLIVEMAN.DAT','DECRYPTING ............ DONE','CONNECTING TO TERMINAL ...','','[ AUTHORIZED PERSONNEL ONLY ]','',];for(let i=0;i<lines.length;i++){bootEl.textContent+=lines[i]+'\n';await sleep(140);}await sleep(600);bootEl.classList.add('hidden');input.focus();ensureAudio();main();}async function main(){try{const result=await titleScreen();if(window.TitleFlyover)window.TitleFlyover.stop();clearScreen();document.body.classList.add('game-started');if(result==='new'){await intro();section('C H A P T E R   1');await ch1_dream();await ch1_phone();await runFrom(1);}else{const code=result;const dec=decodeSave(code);if(!dec){await typeLine('  Save data was corrupted. Starting a new case.','err');await sleep(1200);await intro();section('C H A P T E R   1');await ch1_dream();await ch1_phone();await runFrom(1);return;}restoreState(dec);blank();await typeLine('  Resuming from checkpoint '+dec.cp+' (room '+dec.room+', pos '+dec.row+','+dec.col+')...','sys');blank();showInv();await sleep(1200);await runFrom(dec.cp);}}catch(e){if(e.message!=='END')console.error(e);}}boot();
+async function boot(){const powerOnEl=document.getElementById('crtPowerOn');if(powerOnEl){powerOnEl.classList.add('warming');await sleep(1450);powerOnEl.style.display='none';}const lines=['DUDLEY PD MAINFRAME // POST v3.14','CPU....... 80486DX2 @ 66MHz   [OK]','MEMORY.... 16384 KB           [OK]','HDD....... 540 MB             [OK]','NETWORK... DIAL-UP            [OK]','','LOADING CASE FILE: CLIVEMAN.DAT','DECRYPTING ............ DONE','CONNECTING TO TERMINAL ...','','[ AUTHORIZED PERSONNEL ONLY ]','',];for(let i=0;i<lines.length;i++){bootEl.textContent+=lines[i]+'\n';await sleep(140);}await sleep(600);bootEl.classList.add('hidden');input.focus();ensureAudio();main();}async function main(){try{const result=await titleScreen();if(window.TitleFlyover)window.TitleFlyover.stop();clearScreen();document.body.classList.add('game-started');if(result==='new'){await intro();section('C H A P T E R   1');await ch1_dream();await ch1_phone();await runFrom(1);}else{const saveData=result;const dec=decodeSave(saveData);if(!dec){await typeLine('  Save data was corrupted. Starting a new case.','err');await sleep(1200);await intro();section('C H A P T E R   1');await ch1_dream();await ch1_phone();await runFrom(1);return;}restoreState(dec);blank();await typeLine('  Resuming from checkpoint '+dec.cp+' (room '+dec.room+', pos '+dec.row+','+dec.col+')...','sys');blank();showInv();await sleep(1200);await runFrom(dec.cp);}}catch(e){if(e.message!=='END')console.error(e);}}boot();

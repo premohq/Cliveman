@@ -14,9 +14,16 @@
    index.html is significant - do not reorder these <script> tags.
    ======================================================================== */
 
+window.I18N_LANGS = ['fr','es','zh','pt','ru','hi','ar'];
 window._lang = 'en';
 try{ window._lang = localStorage.getItem('cliveman_lang') || 'en'; }
 catch(e){ /* storage can throw in opaque-origin / locked-down contexts; English default is fine */ }
+/* Treat damaged or manually edited preferences as English. Without this guard,
+   setLanguage() could recursively retry a dictionary that does not exist. */
+if(window._lang !== 'en' && window.I18N_LANGS.indexOf(window._lang) === -1){
+  window._lang = 'en';
+  try{ localStorage.setItem('cliveman_lang','en'); }catch(e){}
+}
 /* Apply saved RTL direction on load */
 if(window._lang === 'ar'){
   document.documentElement.setAttribute('dir', 'rtl');
@@ -41,7 +48,6 @@ window._translations = window._translations || {};
        <script> with an onload callback.
    Both are plain classic scripts, so the dictionary lands in the same
    shared global scope as before. */
-window.I18N_LANGS = ['fr','es','zh','pt','ru','hi','ar'];
 var _langPending = {};
 window.loadLanguage = function(lang, cb){
   cb = cb || function(){};
@@ -145,6 +151,7 @@ window.tSub = function(s){
 };
 
 window.setLanguage = function(lang, cb){
+  if(lang !== 'en' && window.I18N_LANGS.indexOf(lang) === -1) lang = 'en';
   /* The dictionary may not be resident yet (they load on demand now), so
      fetch it first and only then repaint - otherwise the UI would flash
      English for one frame before the strings arrived. */

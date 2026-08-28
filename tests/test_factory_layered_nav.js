@@ -1,0 +1,12 @@
+'use strict';
+const fs=require('fs'),assert=require('assert');
+const story=fs.readFileSync('story/ch1.js','utf8');
+const nav=fs.readFileSync('engine/nav3d.js','utf8');
+const body=story.slice(story.indexOf('async function ch1_factory'),story.indexOf('async function ch1_rooftop'));
+assert(body.includes('buildFactoryStackedWorld()'),'factory enters the persistent stacked world');
+assert(!body.includes('ROOM_FS'),'factory no longer enters stair sectors');
+assert(!/navigateRoom\s*\(\s*ROOM_F[2-5]/.test(body),'factory never loads another floor room');
+assert(!/stairs_(up|down)|floor_transition|spawn/i.test(body),'factory has no floor transition/spawn mechanic');
+assert(nav.includes('_buildWorldMapped(scene,grid,theme)'),'NAV3D renders mapped stacked coordinates');
+assert(nav.includes('var wp=_wmPoint(grid,px,py)'),'player camera remains in the same continuous world');
+console.log('PASS factory uses one persistent stacked NAV world with no sector or floor swaps');

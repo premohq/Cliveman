@@ -610,8 +610,8 @@ body.nav-mode.nav-dialog #screen::-webkit-scrollbar-track{background:transparent
 /* ---- story mode: dialogue box + scene art (v1.9.0) ----
    The story is told in the terminal's dialogue box (#screen). #storyArt fills
    the space above it with the current scene illustration; #dlgName is the
-   amber speaker plate sitting on the box's top-left edge. Scoped so nav mode,
-   nav dialogs, minigames, and the drive keep their layouts untouched. */
+   amber speaker plate sitting on the box's top-left edge. Full-screen nav and
+   the drive stay untouched; suspended nav-dialog conversations share the plate. */
 #storyArt{display:none;position:relative;flex:1 1 auto;min-height:0;overflow:hidden;align-items:center;justify-content:center}
 body.game-started:not(.nav-mode):not(.cv-driving) #storyArt{display:flex}
 #storyArt .story-scene{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0.9}
@@ -622,18 +622,29 @@ body.game-started:not(.nav-mode):not(.cv-driving) #storyArt{display:flex}
 #storyArt .story-char svg{height:clamp(150px,30vh,280px);width:auto;display:block}
 #storyArt .story-char.char-in{animation:artReveal .55s ease-out}
 #storyArt .story-char.glitch{animation:glitchJitter .55s steps(2,end) infinite}
+#storyArt .story-panel{position:absolute;right:clamp(14px,3vw,28px);top:clamp(10px,4vh,30px);z-index:3;width:clamp(170px,26vw,300px);aspect-ratio:4/5;pointer-events:none;opacity:0}
+#storyArt .story-panel-frame{position:relative;width:100%;height:100%;overflow:hidden;background:#040806;border:3px solid rgba(236,218,185,.88);box-shadow:0 0 0 2px rgba(10,10,10,.82),0 18px 35px rgba(0,0,0,.48),0 0 24px rgba(255,240,210,.10);transform:rotate(-1.5deg)}
+#storyArt .story-panel-img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 32%;filter:contrast(1.02) saturate(.92)}
+#storyArt .story-panel-scan{position:absolute;inset:0;background:repeating-linear-gradient(to bottom, rgba(255,255,255,0.00) 0 3px, rgba(0,0,0,.14) 3px 4px), radial-gradient(circle at 50% 42%, rgba(0,0,0,0) 56%, rgba(0,0,0,.32) 100%);mix-blend-mode:multiply;pointer-events:none}
+#storyArt .story-panel.panel-in{opacity:1;animation:panelPop .32s ease-out}
+#storyArt .story-panel.panel-slam{animation:panelSlam .22s ease-out}
+@keyframes panelPop{0%{opacity:0;transform:translate(12px,10px) scale(.88)}100%{opacity:1;transform:translate(0,0) scale(1)}}
+@keyframes panelSlam{0%{opacity:0;transform:translate(16px,-8px) scale(1.08)}100%{opacity:1;transform:translate(0,0) scale(1)}}
 #dlgName{display:none;align-self:flex-start;margin:0 0 -13px 14px;position:relative;z-index:3;background:#020a04;border:2px solid var(--amber);color:var(--amber);padding:1px 14px;font-size:19px;letter-spacing:3px;text-shadow:0 0 8px rgba(255,176,0,.8)}
-body.game-started:not(.nav-mode):not(.cv-driving) #dlgName.show{display:inline-block}
+body.game-started:not(.nav-mode):not(.cv-driving) #dlgName.show,body.game-started.nav-mode.nav-dialog:not(.cv-driving) #dlgName.show{display:inline-block}
 body.game-started:not(.nav-mode):not(.cv-driving) #screen{flex:0 0 auto;min-height:120px;max-height:34vh;max-height:34dvh;border:2px solid var(--green-dim);background:rgba(1,8,3,.82);box-shadow:0 0 20px rgba(20,120,60,.3),inset 0 0 24px rgba(4,40,16,.45);padding:12px 18px;margin-bottom:6px}
 @media (max-width:767px),(pointer:coarse){
   #dlgName{font-size:15px;letter-spacing:2px;margin:0 0 -12px 10px;padding:1px 10px}
   body.game-started:not(.nav-mode):not(.cv-driving) #screen{max-height:40vh;max-height:40dvh;min-height:100px;padding:10px 12px}
   #storyArt .story-char svg{height:clamp(120px,24dvh,220px)}
+  #storyArt .story-panel{width:clamp(145px,38vw,240px)}
 }
+
 @media (pointer:coarse) and (orientation:landscape),(max-height:500px) and (orientation:landscape){
   body.game-started:not(.nav-mode):not(.cv-driving) #screen{max-height:52dvh;min-height:80px;padding:8px 12px}
   #storyArt .story-scene svg{height:min(30vh,53vw,428px);height:min(30dvh,53vw,428px);max-height:100%}
   #storyArt .story-char svg{height:clamp(90px,34dvh,180px)}
+  #storyArt .story-panel{width:clamp(120px,30vw,190px);top:8px;right:10px}
   #dlgName{font-size:13px}
 }
 
@@ -785,26 +796,22 @@ SECURE LINK <span class="blink">█</span></span></div><div id="mapArea"></div><
      LOAD ORDER IS THE MODULE SYSTEM. Classic scripts, one shared global
      scope, no bundler. Order: i18n core (which pulls in the ONE active
      language dictionary, if any) -> Three.js
-     -> tamper guard -> engine (dom-refs first: version + fault trap) ->
+     -> foundation (tamper guard + version + fault trap) -> engine ->
      story chapters -> menus -> boot.js (calls boot() and starts the game)
-     -> Crown Vic drive bundle. Do not reorder. anti-tamper.js may be
+     -> Crown Vic drive bundle. Do not reorder. the anti-tamper section at the top of foundation.js may be
      commented out safely while developing.
      ══════════════════════════════════════════════════════════════════ -->
 <script src="engine/i18n/core.js"></script>
 <script src="engine/three.global.js"></script>
 <script src="engine/title-flyover.js"></script>
-<script src="engine/anti-tamper.js"></script>
-<script src="engine/dom-refs.js"></script>
+<script src="engine/foundation.js"></script>
 <script src="engine/audio.js"></script>
-  <script src="engine/stings.js"></script>
 <script src="engine/voice.js"></script>
-<script src="engine/cutscene.js"></script>
+<script src="engine/cinematic-state.js"></script>
 <script src="engine/story-art.js"></script>
 <script src="engine/music-classical.js"></script>
-<script src="engine/save-state.js"></script>
 <script src="engine/ui-core.js"></script>
-<script src="engine/compass.js"></script>
-<script src="engine/minimap.js"></script>
+<script src="engine/navigation-hud.js"></script>
 <script src="engine/transitions.js"></script>
 <script src="engine/raycaster.js"></script>
 <script src="engine/handmodel.js"></script>

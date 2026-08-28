@@ -52,7 +52,7 @@ function showTitleButtons(){
     rowWrap.appendChild(gearBtn);
     rowWrap.appendChild(loadBtn);
     choicePanelEl.appendChild(rowWrap);
-    requestAnimationFrame(function(){scrollScreenToBottom();});
+    requestAnimationFrame(function(){scrollScreenToBottom();if(!IS_MOBILE&&document.activeElement===input){try{newBtn.focus();}catch(e){}}});
   });
 }
 
@@ -60,19 +60,32 @@ function showTitleButtons(){
 function showSettingsModal(){
   /* Remove any existing modal */
   var existing=document.getElementById('settingsModal');
-  if(existing)existing.remove();
+  if(existing){if(existing._closeSettings)existing._closeSettings();else existing.remove();}
+  var opener=document.activeElement;
+  var escHandler=null;
 
   var overlay=document.createElement('div');
   overlay.id='settingsModal';
+  overlay.setAttribute('role','dialog');
+  overlay.setAttribute('aria-modal','true');
+  overlay.setAttribute('aria-labelledby','settingsHeading');
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px;';
 
   var box=document.createElement('div');
   box.style.cssText='background:#020a04;border:2px solid var(--amber);box-shadow:0 0 30px rgba(255,176,0,0.5),inset 0 0 20px rgba(6,43,16,0.6);padding:28px 32px;max-width:480px;width:100%;font-family:"VT323",monospace;color:var(--green);';
 
   var heading=document.createElement('div');
+  heading.id='settingsHeading';
   heading.style.cssText='color:var(--amber);font-size:28px;letter-spacing:4px;text-shadow:0 0 8px var(--amber);text-align:center;margin-bottom:18px;border-bottom:1px dashed var(--green-dim);padding-bottom:12px;';
   heading.innerHTML='&#x2699; '+(window.t?window.t('SETTINGS'):'SETTINGS');
   box.appendChild(heading);
+
+  function closeSettings(){
+    if(escHandler)document.removeEventListener('keydown',escHandler);
+    if(overlay.parentNode)overlay.parentNode.removeChild(overlay);
+    if(opener&&opener.isConnected){try{opener.focus();}catch(e){}}
+  }
+  overlay._closeSettings=closeSettings;
 
   var langLabel=document.createElement('div');
   langLabel.style.cssText='color:var(--green-bright);font-size:18px;letter-spacing:2px;margin-bottom:10px;text-shadow:0 0 4px var(--green);';
@@ -101,7 +114,7 @@ function showSettingsModal(){
     btn.addEventListener('mouseleave',function(){if(!active){btn.style.borderColor='var(--green-dim)';btn.style.color='var(--green)';}});
     btn.addEventListener('click',function(e){
       e.preventDefault();ensureAudio();playKeyClick();
-      overlay.remove();
+      closeSettings();
       /* setLanguage now fetches the dictionary on demand, so the title rebuild
          has to happen in its callback rather than on the next line. */
       function _repaint(){
@@ -143,26 +156,28 @@ function showSettingsModal(){
 
   var closeBtn=document.createElement('button');
   closeBtn.type='button';
+  closeBtn.setAttribute('data-pad-back','1');
   closeBtn.style.cssText='display:block;width:100%;background:transparent;border:2px solid var(--green);color:var(--green);font-family:"VT323",monospace;font-size:22px;padding:12px;border-radius:6px;cursor:pointer;letter-spacing:2px;text-shadow:0 0 4px var(--green);';
   closeBtn.textContent=window.t?window.t('CLOSE'):'CLOSE';
   closeBtn.addEventListener('click',function(e){
     e.preventDefault();ensureAudio();playKeyClick();
-    overlay.remove();
+    closeSettings();
   });
   box.appendChild(closeBtn);
 
   /* Click outside to close */
   overlay.addEventListener('click',function(e){
-    if(e.target===overlay){overlay.remove();}
+    if(e.target===overlay){closeSettings();}
   });
   /* Escape to close */
-  var escHandler=function(e){
-    if(e.key==='Escape'){overlay.remove();document.removeEventListener('keydown',escHandler);}
+  escHandler=function(e){
+    if(e.key==='Escape'){e.preventDefault();closeSettings();}
   };
   document.addEventListener('keydown',escHandler);
 
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  requestAnimationFrame(function(){var first=box.querySelector('button:not([disabled])');if(first){try{first.focus();}catch(e){}}});
 }
 
 /* ── Desktop nav button wiring ── */
@@ -171,154 +186,118 @@ function showSettingsModal(){
 window._pauseQuitResolve = null;
 
 function showPauseMenu(){
-  var existing = document.getElementById('pauseModal');
-  if(existing){ existing.remove(); return; }
+  var existing=document.getElementById('pauseModal');
+  if(existing){
+    if(existing._closePause)existing._closePause(false);
+    else existing.remove();
+    return;
+  }
 
-  var T = window.t || function(s){ return s; };
-  var overlay = document.createElement('div');
-  overlay.id = 'pauseModal';
+  var T=window.t||function(x){return x;};
+  var opener=document.activeElement;
+  var escH=null;
+  var wasMovementAllowed=(typeof movementAllowed!=='undefined')&&!!movementAllowed;
+  var overlay=document.createElement('div');
+  overlay.id='pauseModal';
+  overlay.setAttribute('role','dialog');
+  overlay.setAttribute('aria-modal','true');
+  overlay.setAttribute('aria-labelledby','pauseHeading');
 
-  var box = document.createElement('div');
-  box.className = 'pause-box';
+  function closePause(keepPaused){
+    if(escH)document.removeEventListener('keydown',escH);
+    if(overlay.parentNode)overlay.parentNode.removeChild(overlay);
+    if(!keepPaused){
+      if(typeof window.setGamePaused==='function')window.setGamePaused(false);
+      else window._gamePaused=false;
+      if(wasMovementAllowed&&document.body.classList.contains('nav-mode')&&typeof setMovementAllowed==='function')setMovementAllowed(true);
+      if(opener&&opener.isConnected){try{opener.focus();}catch(e){}}
+      else if(typeof input!=='undefined'&&input){try{input.focus();}catch(e){}}
+    }
+  }
+  overlay._closePause=closePause;
 
-  var title = document.createElement('div');
-  title.className = 'pause-title';
-  title.textContent = '☰ ' + T('PAUSED');
+  if(typeof window.setGamePaused==='function')window.setGamePaused(true);
+  else window._gamePaused=true;
+  if(wasMovementAllowed&&typeof setMovementAllowed==='function')setMovementAllowed(false);
+  if(window._fm)window._fm.held={};
+  try{if(document.pointerLockElement&&document.exitPointerLock)document.exitPointerLock();}catch(e){}
+  if(window.VOICE&&VOICE.stop)VOICE.stop();
+
+  var box=document.createElement('div');
+  box.className='pause-box';
+
+  var title=document.createElement('div');
+  title.id='pauseHeading';
+  title.className='pause-title';
+  title.textContent='☰ '+T('PAUSED');
   box.appendChild(title);
 
-  var btnRow = document.createElement('div');
-  btnRow.className = 'pause-btn-row';
+  var btnRow=document.createElement('div');
+  btnRow.className='pause-btn-row';
 
-  /* Resume */
-  var resumeBtn = document.createElement('button');
-  resumeBtn.type = 'button';
-  resumeBtn.className = 'pm-btn';
-  resumeBtn.textContent = '▶ ' + T('RESUME');
-  resumeBtn.addEventListener('click', function(e){
-    e.preventDefault(); if(typeof playKeyClick==='function')playKeyClick();
-    overlay.remove();
-  });
+  var resumeBtn=document.createElement('button');
+  resumeBtn.type='button';resumeBtn.className='pm-btn';resumeBtn.setAttribute('data-pad-back','1');resumeBtn.textContent='▶ '+T('RESUME');
+  resumeBtn.addEventListener('click',function(e){e.preventDefault();if(typeof playKeyClick==='function')playKeyClick();closePause(false);});
   btnRow.appendChild(resumeBtn);
 
-  /* Mute / Unmute toggle */
-  var muteBtn = document.createElement('button');
-  muteBtn.type = 'button';
-  muteBtn.className = 'pm-btn';
-  function _refreshMuteLabel(){
-    var m = (typeof isMuted === 'function') && isMuted();
-    muteBtn.textContent = m ? ('🔇 ' + T('UNMUTE')) : ('🔊 ' + T('MUTE'));
-  }
-  _refreshMuteLabel();
-  muteBtn.addEventListener('click', function(e){
-    e.preventDefault();
-    if(typeof ensureAudio === 'function') ensureAudio();
-    if(typeof toggleMute === 'function') toggleMute();
-    if(typeof playKeyClick === 'function') playKeyClick();
-    _refreshMuteLabel();
-  });
+  var muteBtn=document.createElement('button');
+  muteBtn.type='button';muteBtn.className='pm-btn';
+  function refreshMuteLabel(){var m=(typeof isMuted==='function')&&isMuted();muteBtn.textContent=m?('🔇 '+T('UNMUTE')):('🔊 '+T('MUTE'));}
+  refreshMuteLabel();
+  muteBtn.addEventListener('click',function(e){e.preventDefault();if(typeof ensureAudio==='function')ensureAudio();if(typeof toggleMute==='function')toggleMute();if(typeof playKeyClick==='function')playKeyClick();refreshMuteLabel();});
   btnRow.appendChild(muteBtn);
 
-  /* Character voices toggle */
-  var voiceBtn = document.createElement('button');
-  voiceBtn.type = 'button';
-  voiceBtn.className = 'pm-btn';
-  function _refreshVoiceLabel(){
-    if(!window.VOICE || !VOICE.supported){voiceBtn.textContent = '\uD83D\uDD15 ' + T('VOICE N/A');voiceBtn.disabled = true;voiceBtn.style.opacity = '0.45';return;}
-    voiceBtn.textContent = (VOICE.enabled ? '\uD83D\uDD0A ' + T('VOICE SFX: ON') : '\uD83D\uDD07 ' + T('VOICE SFX: MUTED'));
+  var voiceBtn=document.createElement('button');
+  voiceBtn.type='button';voiceBtn.className='pm-btn';
+  function refreshVoiceLabel(){
+    if(!window.VOICE||!VOICE.supported){voiceBtn.textContent='🔕 '+T('VOICE N/A');voiceBtn.disabled=true;voiceBtn.style.opacity='0.45';return;}
+    voiceBtn.textContent=VOICE.enabled?('🔊 '+T('VOICE SFX: ON')):('🔇 '+T('VOICE SFX: MUTED'));
   }
-  _refreshVoiceLabel();
-  voiceBtn.addEventListener('click', function(e){
-    e.preventDefault();
-    if(typeof ensureAudio === 'function') ensureAudio();
-    if(window.VOICE) VOICE.toggle();
-    if(typeof playKeyClick === 'function') playKeyClick();
-    _refreshVoiceLabel();
-  });
+  refreshVoiceLabel();
+  voiceBtn.addEventListener('click',function(e){e.preventDefault();if(typeof ensureAudio==='function')ensureAudio();if(window.VOICE)VOICE.toggle();if(typeof playKeyClick==='function')playKeyClick();refreshVoiceLabel();});
   btnRow.appendChild(voiceBtn);
 
-  /* Save & Quit */
-  var saveQuitBtn = document.createElement('button');
-  saveQuitBtn.type = 'button';
-  saveQuitBtn.className = 'pm-btn';
-  saveQuitBtn.textContent = '💾 ' + T('SAVE & QUIT');
-  saveQuitBtn.addEventListener('click', function(e){
-    e.preventDefault(); if(typeof playKeyClick==='function')playKeyClick();
-    /* Trigger save then quit */
-    overlay.remove();
-    doSaveAndQuit();
-  });
+  var saveQuitBtn=document.createElement('button');
+  saveQuitBtn.type='button';saveQuitBtn.className='pm-btn';saveQuitBtn.textContent='💾 '+T('SAVE & QUIT');
+  saveQuitBtn.addEventListener('click',function(e){e.preventDefault();if(typeof playKeyClick==='function')playKeyClick();closePause(true);doSaveAndQuit();});
   btnRow.appendChild(saveQuitBtn);
 
-  /* Quit to Title */
-  var quitBtn = document.createElement('button');
-  quitBtn.type = 'button';
-  quitBtn.className = 'pm-btn danger';
-  quitBtn.textContent = '✕ ' + T('QUIT TO TITLE');
-  quitBtn.addEventListener('click', function(e){
-    e.preventDefault(); if(typeof playKeyClick==='function')playKeyClick();
-    /* Show confirmation */
-    showQuitConfirm(overlay);
-  });
+  var quitBtn=document.createElement('button');
+  quitBtn.type='button';quitBtn.className='pm-btn danger';quitBtn.textContent='✕ '+T('QUIT TO TITLE');
+  quitBtn.addEventListener('click',function(e){e.preventDefault();if(typeof playKeyClick==='function')playKeyClick();showQuitConfirm(overlay,closePause);});
   btnRow.appendChild(quitBtn);
 
-  box.appendChild(btnRow);
-  overlay.appendChild(box);
-
-  /* Click outside to close */
-  overlay.addEventListener('click', function(e){
-    if(e.target === overlay){ overlay.remove(); }
-  });
-  /* Escape to close */
-  var escH = function(e){
-    if(e.key === 'Escape'){ overlay.remove(); document.removeEventListener('keydown', escH); }
-  };
-  document.addEventListener('keydown', escH);
-
+  box.appendChild(btnRow);overlay.appendChild(box);
+  overlay.addEventListener('click',function(e){if(e.target===overlay)closePause(false);});
+  escH=function(e){if(e.key==='Escape'){e.preventDefault();closePause(false);}};
+  document.addEventListener('keydown',escH);
   document.body.appendChild(overlay);
+  requestAnimationFrame(function(){try{resumeBtn.focus();}catch(e){}});
 }
 
-function showQuitConfirm(parentOverlay){
-  var T = window.t || function(s){ return s; };
+function showQuitConfirm(parentOverlay,closePause){
+  var T=window.t||function(s){return s;};
+  var box=parentOverlay.querySelector('.pause-box');
+  box.innerHTML='';
 
-  /* Replace the box content with confirmation */
-  var box = parentOverlay.querySelector('.pause-box');
-  box.innerHTML = '';
-
-  var title = document.createElement('div');
-  title.className = 'pause-title';
-  title.textContent = '⚠ ' + T('QUIT TO TITLE');
+  var title=document.createElement('div');
+  title.id='pauseHeading';title.className='pause-title';title.textContent='⚠ '+T('QUIT TO TITLE');
   box.appendChild(title);
 
-  var msg = document.createElement('div');
-  msg.style.cssText = 'color:var(--green);font-size:18px;text-align:center;margin-bottom:18px;line-height:1.4;';
-  msg.textContent = T('Are you sure? Unsaved progress will be lost.');
+  var msg=document.createElement('div');
+  msg.style.cssText='color:var(--green);font-size:18px;text-align:center;margin-bottom:18px;line-height:1.4;';
+  msg.textContent=T('Are you sure? Unsaved progress will be lost.');
   box.appendChild(msg);
 
-  var btnRow = document.createElement('div');
-  btnRow.className = 'pause-btn-row';
-
-  var yesBtn = document.createElement('button');
-  yesBtn.type = 'button';
-  yesBtn.className = 'pm-btn danger';
-  yesBtn.textContent = T('YES, QUIT');
-  yesBtn.addEventListener('click', function(e){
-    e.preventDefault(); if(typeof playKeyClick==='function')playKeyClick();
-    parentOverlay.remove();
-    doQuitToTitle();
-  });
+  var btnRow=document.createElement('div');btnRow.className='pause-btn-row';
+  var yesBtn=document.createElement('button');yesBtn.type='button';yesBtn.className='pm-btn danger';yesBtn.textContent=T('YES, QUIT');
+  yesBtn.addEventListener('click',function(e){e.preventDefault();if(typeof playKeyClick==='function')playKeyClick();closePause(true);doQuitToTitle();});
   btnRow.appendChild(yesBtn);
 
-  var cancelBtn = document.createElement('button');
-  cancelBtn.type = 'button';
-  cancelBtn.className = 'pm-btn';
-  cancelBtn.textContent = T('CANCEL');
-  cancelBtn.addEventListener('click', function(e){
-    e.preventDefault(); if(typeof playKeyClick==='function')playKeyClick();
-    parentOverlay.remove();
-  });
-  btnRow.appendChild(cancelBtn);
-
-  box.appendChild(btnRow);
+  var cancelBtn=document.createElement('button');cancelBtn.type='button';cancelBtn.className='pm-btn';cancelBtn.setAttribute('data-pad-back','1');cancelBtn.textContent=T('CANCEL');
+  cancelBtn.addEventListener('click',function(e){e.preventDefault();if(typeof playKeyClick==='function')playKeyClick();closePause(false);});
+  btnRow.appendChild(cancelBtn);box.appendChild(btnRow);
+  requestAnimationFrame(function(){try{cancelBtn.focus();}catch(e){}});
 }
 
 function doQuitToTitle(){
@@ -432,6 +411,8 @@ document.addEventListener('DOMContentLoaded', function(){
 
   /* ── Menu focus helpers ── */
   function getInteractiveBtns(){
+    var modal=document.querySelector('#pauseModal,#settingsModal');
+    if(modal)return [].slice.call(modal.querySelectorAll('button:not([disabled])'));
     return [].slice.call(document.querySelectorAll('.title-btn, .choice-btn'));
   }
   function setPadFocus(idx){
@@ -499,7 +480,8 @@ document.addEventListener('DOMContentLoaded', function(){
     if(!pad){padLoopId=requestAnimationFrame(padTick);return;}
 
     const now=Date.now();
-    const inNav=!!arrowHandler;
+    const modal=document.querySelector('#pauseModal,#settingsModal');
+    const inNav=!!arrowHandler&&!modal;
     const btns=getInteractiveBtns();
     const inMenu=btns.length>0&&!inNav;
 
@@ -580,8 +562,8 @@ document.addEventListener('DOMContentLoaded', function(){
     if(bOn&&!padState.buttons[BTN_B]){
       const all=getInteractiveBtns();
       /* First look for a BACK/CANCEL button specifically */
-      let backBtn=null;
-      for(let i=0;i<all.length;i++){
+      let backBtn=document.querySelector('#pauseModal [data-pad-back],#settingsModal [data-pad-back]');
+      for(let i=0;!backBtn&&i<all.length;i++){
         const t=(all[i].textContent||'').toUpperCase();
         if(t.indexOf('BACK')!==-1||t.indexOf('CANCEL')!==-1||t.indexOf('NO')===0){backBtn=all[i];break;}
       }
@@ -595,18 +577,18 @@ document.addEventListener('DOMContentLoaded', function(){
     const xOn=pad.buttons[BTN_X]&&pad.buttons[BTN_X].pressed;
     if(xOn&&!padState.buttons[BTN_X]){
       ensureAudio();playKeyClick();
-      if(movementAllowed&&checkFn)checkFn();
+      if(!modal&&movementAllowed&&checkFn)checkFn();
     }
     padState.buttons[BTN_X]=xOn;
 
     /* Y — inventory */
     const yOn=pad.buttons[BTN_Y]&&pad.buttons[BTN_Y].pressed;
-    if(yOn&&!padState.buttons[BTN_Y]){ensureAudio();playKeyClick();showInv();}
+    if(yOn&&!padState.buttons[BTN_Y]&&!modal){ensureAudio();playKeyClick();showInv();}
     padState.buttons[BTN_Y]=yOn;
 
     /* BACK — save */
     const backOn=pad.buttons[BTN_BACK]&&pad.buttons[BTN_BACK].pressed;
-    if(backOn&&!padState.buttons[BTN_BACK]){ensureAudio();playKeyClick();showSaveCode();}
+    if(backOn&&!padState.buttons[BTN_BACK]&&!modal){ensureAudio();playKeyClick();showSaveCode();}
     padState.buttons[BTN_BACK]=backOn;
 
     /* Auto-focus first menu button; clear when no menu */

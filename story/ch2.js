@@ -22,6 +22,7 @@ async function ch2_arrive(){section('C H A P T E R   2   -   B E G I N S');await
   blank();
   await pressEnterToContinue();
   clearScreen();
+  if(window.STORYART)STORYART.set('diner');
 
   /* Interior */
   await typeLine('"The place smells like toasted bread and industrial cleaning fluid. A teenage employee mops something in the corner. Another employee, mid-twenties, stands behind the counter. Her name tag says LINDA."','narration');
@@ -49,6 +50,7 @@ async function ch2_arrive(){section('C H A P T E R   2   -   B E G I N S');await
 
   /* The Death */
   clearScreen();
+  if(window.STORYART)STORYART.set('diner');
   await typeLine('"Bevan takes a massive bite."','narration');
   await sleep(800);
   await typeLine('"The cough starts small. Bevan puts a hand up like he\'s fine."','narration');

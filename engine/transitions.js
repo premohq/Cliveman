@@ -74,7 +74,7 @@ async function driveClivesBuick(fromLoc,toLoc,dopts){
   if(window.CUTSCENE)await CUTSCENE.fadeIn(CANVAS_TITLE);
   clearScreen();
   instantLine('>>>>>   NIGHT DRIVE   <<<<<','sys');
-  instantLine('  Find '+DEST_LABEL+' - follow the GREEN ARROW to the glowing RED marker.','speaker');
+  instantLine('  Find '+DEST_LABEL+' - follow the RED GPS route and compass dot.','speaker');
   instantLine('  W / UP throttle   S / DOWN brake   A D / LEFT RIGHT steer','dim');
   blank();
   if(typeof input!=='undefined'&&input&&input.blur)input.blur();
@@ -109,9 +109,10 @@ async function driveClivesBuick(fromLoc,toLoc,dopts){
     _driveResult = await window.startClivesBuick({
       canvasParent: mapAreaEl,
       title: CANVAS_TITLE,
+      destLabel: DEST_LABEL,
       arriveText: ARRIVE_LINE,
       blockedText: '"You can\'t do that now."',
-      startHint: '  Find '+DEST_LABEL+' - follow the GREEN ARROW to the glowing RED marker.',
+      startHint: '  Find '+DEST_LABEL+' - follow the RED GPS route and compass dot.',
       driveQuips: driveQuips,
       hitQuips: hitQuips,
       onQuip:function(t){ instantLine(t,'speaker'); if(typeof scrollScreenToBottom==='function')scrollScreenToBottom(); },
@@ -197,8 +198,13 @@ function floorLabelFade(text){
       function cleanup(){if(done)return;done=true;if(wrap&&wrap.parentNode)wrap.parentNode.removeChild(wrap);}
       wrap.addEventListener('animationend',cleanup);
       /* safety removal + resolve a touch before the full 1.1s so play stays snappy */
-      setTimeout(cleanup,1200);
-      setTimeout(resolve,650);
+      if(typeof sleep==='function'){
+        sleep(1200).then(cleanup);
+        sleep(650).then(resolve);
+      }else{
+        setTimeout(cleanup,1200);
+        setTimeout(resolve,650);
+      }
     }catch(e){resolve();}
   });
 }
@@ -339,39 +345,7 @@ function fedora(cx, brimY){
    + '<path d="M'+(cx-70)+' '+brimY+' Q'+cx+' '+(brimY+14)+' '+(cx+70)+' '+brimY+' Q'+cx+' '+(brimY-6)+' '+(cx-70)+' '+brimY+' Z"/>';
 }
 
-/* NEUTRAL — calm suspect in a fedora, suit + tie */
-var neutral = fedora() +
-  '<path d="M98 92 Q98 172 150 184 Q202 172 202 92"/>'+
-  '<circle cx="126" cy="124" r="5.5"/>'+
-  '<circle cx="174" cy="124" r="5.5"/>'+
-  '<path d="M150 130 L150 148 L143 154"/>'+
-  '<path d="M130 166 Q150 172 170 166"/>'+
-  '<path d="M100 190 Q150 198 200 190"/>'+
-  '<path d="M88 300 Q88 216 112 198"/>'+
-  '<path d="M212 300 Q212 216 188 198"/>'+
-  '<path d="M140 198 L150 234 L160 198"/>'+
-  '<path d="M150 234 L150 292"/>';
-
-/* BS — same fedora, angry leaning face, gritted teeth; amber LIAR + accusing arm */
-var bs = fedora() +
-  '<path d="M98 92 Q98 172 150 184 Q202 170 200 90"/>'+
-  '<path d="M114 110 L140 120"/>'+
-  '<path d="M186 110 L160 120"/>'+
-  '<path d="M120 128 L136 130"/>'+
-  '<path d="M164 130 L180 128"/>'+
-  '<path d="M150 132 L150 150 L143 156"/>'+
-  '<path d="M128 166 L172 166 L172 176 L128 176 Z"/>'+
-  '<path d="M140 166 L140 176 M150 166 L150 176 M162 166 L162 176"/>'+
-  '<path d="M100 192 Q150 200 200 192"/>'+
-  '<path d="M88 300 Q88 218 112 200"/>'+
-  '<path d="M212 300 Q212 218 188 200"/>'+
-  '<path d="M140 200 L150 236 L160 200"/>';
-var bsOverlay =
-  '<g filter="url(#charGlow)" fill="none" stroke="'+AMBER+'" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">'+
-  '<path d="M300 252 L240 236"/>'+
-  '<path d="M240 236 L256 228 M240 236 L256 244"/>'+
-  '</g>'+
-  '<text x="150" y="40" font-family="monospace" font-size="26" fill="'+AMBER+'" text-anchor="middle" filter="url(#charGlow)" letter-spacing="4">LIAR</text>';
+/* Clemons interrogation portraits are raster story scenes now. */
 
 /* SHOOTOUT — a DIFFERENT character: hatless young perp, messy hair, shocked,
    recoiling from a gunshot; amber impact-star + BLAM! */
@@ -423,10 +397,8 @@ var bevanOverlay =
   '<text x="226" y="118" fill="'+AMBER+'" font-family="monospace" font-size="20" font-style="italic">*hic*</text>';
 
 return {
-  normal: doc(neutral),
-  bevan:  doc(bevanInner, bevanOverlay),
-  bs:     doc(bs, bsOverlay),
-  shoot:  doc(shoot, shootOverlay)
+  bevan: doc(bevanInner, bevanOverlay),
+  shoot: doc(shoot, shootOverlay)
 };
 })();
 
@@ -438,7 +410,8 @@ function instantArt(kind, cls){
   if(window.STORYART&&document.body.classList.contains('game-started')&&!document.body.classList.contains('nav-mode')){
     return STORYART.char(kind,cls);
   }
-  var svg = CHAR_ART_DEFS[kind] || CHAR_ART_DEFS.normal;
+  var svg = CHAR_ART_DEFS[kind];
+  if(!svg)return null;
   var div = appendLine('char-art art-reveal '+(cls||''));
   div.innerHTML = svg;
   if(typeof playMoveBlip==='function'){try{playMoveBlip();}catch(e){}}

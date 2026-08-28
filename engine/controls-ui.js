@@ -49,6 +49,7 @@ window._fm = window._fm || { active:false, held:{} };
 (function(){
   function setKey(e,down){
     if(!window._fm.active) return;
+    if(window._gamePaused){if(!down)window._fm.held={};return;}
     var k=e.key, a=null;
     if(k==='ArrowUp'||k==='w'||k==='W')a='f';
     else if(k==='ArrowDown'||k==='s'||k==='S')a='b';
@@ -122,7 +123,7 @@ function _fmBlocked(grid,x,y,fx,fy){
     var cur=(grid._floorH[cr]&&grid._floorH[cr][cc]!=null)?grid._floorH[cr][cc]:0;
     var tgt=grid._floorH[r][c];
     if(tgt==null) return true;
-    if((tgt-cur)>SECTOR_STEP_MAX) return true;
+    if(Math.abs(tgt-cur)>SECTOR_STEP_MAX) return true;
   }
   return false;
 }
@@ -141,21 +142,36 @@ function _freeMoveStep(s,held,dt,grid){
   if(Math.abs(s.vx)<0.0005)s.vx=0; if(Math.abs(s.vy)<0.0005)s.vy=0;
   var sp=Math.hypot(s.vx,s.vy);
   if(sp>FM_MAXV){ s.vx=s.vx/sp*FM_MAXV; s.vy=s.vy/sp*FM_MAXV; }
-  /* per-axis integration with collision -> slide along walls, no tunneling */
+  /* Circle-footprint collision. The old single leading-point test could let a
+     shoulder clip a stairwell corner at diagonal angles, producing wall pops or
+     trapping the player between a tread and rail. Check the leading centre and
+     both leading corners for each axis while retaining wall-sliding. */
+  function clearX(nx){
+    var sx=Math.sign(s.vx)||1,ex=nx+sx*FM_RADIUS;
+    return !_fmBlocked(grid,ex,s.fy,s.fx,s.fy)&&
+           !_fmBlocked(grid,ex,s.fy-FM_RADIUS*0.72,s.fx,s.fy)&&
+           !_fmBlocked(grid,ex,s.fy+FM_RADIUS*0.72,s.fx,s.fy);
+  }
+  function clearY(ny){
+    var sy=Math.sign(s.vy)||1,ey=ny+sy*FM_RADIUS;
+    return !_fmBlocked(grid,s.fx,ey,s.fx,s.fy)&&
+           !_fmBlocked(grid,s.fx-FM_RADIUS*0.72,ey,s.fx,s.fy)&&
+           !_fmBlocked(grid,s.fx+FM_RADIUS*0.72,ey,s.fx,s.fy);
+  }
   var nx=s.fx+s.vx*dt;
-  if(!_fmBlocked(grid, nx+Math.sign(s.vx)*FM_RADIUS, s.fy, s.fx, s.fy)) s.fx=nx; else s.vx=0;
+  if(clearX(nx))s.fx=nx;else s.vx=0;
   var ny=s.fy+s.vy*dt;
-  if(!_fmBlocked(grid, s.fx, ny+Math.sign(s.vy)*FM_RADIUS, s.fx, s.fy)) s.fy=ny; else s.vy=0;
+  if(clearY(ny))s.fy=ny;else s.vy=0;
   return s;
 }
-async function navigateRoom(roomId,grid,start,events,exits,opts){if(!opts)opts={};if(opts.title&&window.ClassicalMusic&&ClassicalMusic.cue)try{ClassicalMusic.cue(opts.title);}catch(e){}if(opts.freeMove===undefined)opts.freeMove=true;window._navItemArt=opts.itemArt||null;window._navFurniture=opts.furniture||null;/* smooth momentum movement is now the default for every room (was factory-only); pass freeMove:false to opt a room back into discrete grid-stepping */if(!navJustExited&&screenEl.children.length>0){await pressEnterToContinue();}enterNavMode();let pos;let heading;if(state.resumeRoomId===roomId&&state.resumePos){var _rp=[state.resumePos[0],state.resumePos[1]];state.resumeRoomId=-1;state.resumePos=null;var _rpOK=grid[_rp[0]]&&grid[_rp[0]][_rp[1]]!=null&&rcWallHeight(grid[_rp[0]][_rp[1]])<1.0;if(_rpOK){pos=_rp;heading=(typeof state.resumeHeading==='number')?state.resumeHeading:0;}else{pos=[start[0],start[1]];heading=(typeof opts.startHeading==='number')?opts.startHeading:0;}}else{pos=[start[0],start[1]];heading=(typeof opts.startHeading==='number')?opts.startHeading:0;}state.roomId=roomId;state.savedRow=pos[0];state.savedCol=pos[1];state.heading=heading;const checked={};const rows=grid.length;drawFP(grid,pos,heading,opts.title||'',opts);drawCmdList();return new Promise(function(resolveExit){function _aimTargetKey(){var ang=(typeof _fs!=='undefined'&&_fs)?_fs.ang:headAngles[heading];var dxx=Math.cos(ang),dyy=Math.sin(ang);var cx=pos[1]+0.5,cy=pos[0]+0.5;var ownKey=pos[0]+','+pos[1];for(var tt=0.18;tt<=3.5;tt+=0.12){var wx=cx+dxx*tt,wy=cy+dyy*tt;var cc=Math.floor(wx),rr=Math.floor(wy);if(rr<0||rr>=rows||!grid[rr]||cc<0||cc>=grid[rr].length)break;if(rcWallHeight(grid[rr][cc])>=1.0)break;var k=rr+','+cc;if(k===ownKey)continue;if(events[k]!=null||exits[k]!=null)return k;}return null;}
+async function navigateRoom(roomId,grid,start,events,exits,opts){if(!opts)opts={};if(opts.title&&window.ClassicalMusic&&ClassicalMusic.cue)try{ClassicalMusic.cue(opts.title);}catch(e){}if(opts.freeMove===undefined)opts.freeMove=true;window._navItemArt=opts.itemArt||null;window._navFurniture=opts.furniture||null;/* smooth momentum movement is now the default for every room (was factory-only); pass freeMove:false to opt a room back into discrete grid-stepping */if(!opts.seamless&&!navJustExited&&screenEl.children.length>0){await pressEnterToContinue();}enterNavMode();let pos;let heading;if(state.resumeRoomId===roomId&&state.resumePos){var _rp=[state.resumePos[0],state.resumePos[1]];var _resumeHeading=(typeof state.resumeHeading==='number')?state.resumeHeading:null;state.resumeRoomId=-1;state.resumePos=null;state.resumeHeading=null;var _rpOK=grid[_rp[0]]&&grid[_rp[0]][_rp[1]]!=null&&rcWallHeight(grid[_rp[0]][_rp[1]])<1.0;if(_rpOK){pos=_rp;heading=_resumeHeading!==null?_resumeHeading:0;}else{pos=[start[0],start[1]];heading=(typeof opts.startHeading==='number')?opts.startHeading:0;}}else{pos=[start[0],start[1]];heading=(typeof opts.startHeading==='number')?opts.startHeading:0;}state.roomId=roomId;state.savedRow=pos[0];state.savedCol=pos[1];state.heading=heading;const checked={};const rows=grid.length;drawFP(grid,pos,heading,opts.title||'',opts);drawCmdList();return new Promise(function(resolveExit){function _aimTargetKey(){var ang=(typeof _fs!=='undefined'&&_fs)?_fs.ang:headAngles[heading];var dxx=Math.cos(ang),dyy=Math.sin(ang);var cx=pos[1]+0.5,cy=pos[0]+0.5;var ownKey=pos[0]+','+pos[1];for(var tt=0.18;tt<=3.5;tt+=0.12){var wx=cx+dxx*tt,wy=cy+dyy*tt;var cc=Math.floor(wx),rr=Math.floor(wy);if(rr<0||rr>=rows||!grid[rr]||cc<0||cc>=grid[rr].length)break;if(rcWallHeight(grid[rr][cc])>=1.0)break;var k=rr+','+cc;if(k===ownKey)continue;if(events[k]!=null||exits[k]!=null)return k;}return null;}
 async function handleCheck(noAim){if(typing)return;if(!movementAllowed)return;if(window._navCheckBusy)return;window._navCheckBusy=true;try{var aimKey=noAim?null:_aimTargetKey();var key=aimKey||(pos[0]+','+pos[1]);var _kp=key.split(',');var r=+_kp[0],c=+_kp[1];if(exits[key]!=null){const code=exits[key];if(opts.exitGate){setMovementAllowed(false);const allowed=await opts.exitGate(code);setMovementAllowed(true);if(!allowed)return;}state.savedRow=pos[0];state.savedCol=pos[1];arrowHandler=null;swipeHandler=null;checkFn=null;resolveExit(code);return;}if(events[key]){const cellSym=grid[r][c];const isPickup=(cellSym==='I'||cellSym==='U')||!!checked[key];if(isPickup&&checked[key]){setMovementAllowed(false);await typeLine('"Nothing more here."','narration');setMovementAllowed(true);}else{setMovementAllowed(false);if(isPickup)window._navToastHold=true;var _useDialog=document.body.classList.contains('nav-mode')&&!isPickup;if(_useDialog&&window.navSuspend)window.navSuspend();var eventResult;try{eventResult=await events[key]();}catch(_err){if(_useDialog&&window.navResume)window.navResume();window._navToastHold=false;if(window.hideNavToast)window.hideNavToast();setMovementAllowed(true);throw _err;}if(isPickup){checked[key]=true;grid[r][c]='X';navRepaintRoom(grid,pos,heading);}if(typeof eventResult==='string'&&eventResult.length>0){window._navToastHold=false;if(window.hideNavToast)window.hideNavToast();state.savedRow=pos[0];state.savedCol=pos[1];arrowHandler=null;swipeHandler=null;checkFn=null;resolveExit(eventResult);return;}if(isPickup){if(window.navReadGate)await window.navReadGate();window._navToastHold=false;if(window.hideNavToast)window.hideNavToast();}if(_useDialog&&window.navResume)window.navResume();setMovementAllowed(true);}}else{setMovementAllowed(false);await typeLine('"Nothing of note here."','narration');setMovementAllowed(true);}}finally{window._navCheckBusy=false;if(window._navToastHold){window._navToastHold=false;if(window.hideNavToast)window.hideNavToast();}}}
 const _theme=pickTheme(opts.title||'');
 const headAngles=[Math.PI*1.5,0,Math.PI*0.5,Math.PI];
 function canStep(dr,dc){const nr=pos[0]+dr,nc=pos[1]+dc;
 if(nr<0||nr>=rows||nc<0||nc>=grid[nr].length)return false;
 if(rcWallHeight(grid[nr][nc]))return false;
-if(grid._floorH){var cur=grid._floorH[pos[0]][pos[1]];if(cur==null)cur=0;var tgt=grid._floorH[nr][nc];if(tgt==null)return false;if((tgt-cur)>SECTOR_STEP_MAX)return false;}
+if(grid._floorH){var cur=grid._floorH[pos[0]][pos[1]];if(cur==null)cur=0;var tgt=grid._floorH[nr][nc];if(tgt==null)return false;if(Math.abs(tgt-cur)>SECTOR_STEP_MAX)return false;}
 return true;}
 async function tryStep(dr,dc){if(canStep(dr,dc)){const fromR=pos[0],fromC=pos[1];pos[0]+=dr;pos[1]+=dc;state.savedRow=pos[0];state.savedCol=pos[1];playMoveBlip();setMovementAllowed(false);await rcAnimateStep(_rcCanvas,grid,fromC+0.5,fromR+0.5,pos[1]+0.5,pos[0]+0.5,headAngles[heading],_theme);rcRender(_rcCanvas,grid,pos[1]+0.5,pos[0]+0.5,headAngles[heading],_theme);_updateStatus(grid,pos,heading);setMovementAllowed(true);return true;}else{beep(200,0.05,0.04,'square');return false;}}
 async function handleMove(action){if(typing)return;if(!movementAllowed)return;
@@ -193,26 +209,33 @@ var _armed=false;   /* exits can't fire until you've stepped onto a DIFFERENT no
   window._fm.mouseYaw=0;
   var nr=Math.floor(_fs.fy),nc=Math.floor(_fs.fx);
   var changed=(nr!==pos[0]||nc!==pos[1]);
-  if(changed){pos[0]=nr;pos[1]=nc;state.savedRow=nr;state.savedCol=nc;var cs=Math.cos(_fs.ang),sn=Math.sin(_fs.ang);heading=(Math.abs(cs)>=Math.abs(sn))?(cs>0?1:3):(sn>0?2:0);state.heading=heading;}
+  var cs=Math.cos(_fs.ang),sn=Math.sin(_fs.ang);
+  var newHeading=(Math.abs(cs)>=Math.abs(sn))?(cs>0?1:3):(sn>0?2:0);
+  var headingChanged=(newHeading!==heading);
+  if(changed){pos[0]=nr;pos[1]=nc;state.savedRow=nr;state.savedCol=nc;}
+  if(headingChanged)heading=newHeading;
+  state.heading=heading;
   var curKey=nr+','+nc;
   if(!_armed && curKey!==_spawnCell && exits[curKey]==null) _armed=true;
   var sp=Math.hypot(_fs.vx,_fs.vy);
   /* no view-bob: bob shifts the horizon and the floor caster scales distance by
      the horizon, so a per-frame bob made the floor swim. Keep projection steady. */
   if(_rcCanvas)rcRender(_rcCanvas,grid,_fs.fx,_fs.fy,_fs.ang,_theme,0);
-  if(changed){
+  if(changed||headingChanged){
     if(typeof _updateStatus==='function')_updateStatus(grid,pos,heading);
-    if(typeof playMoveBlip==='function'&&sp>0.2)playMoveBlip();
-    var ls=grid[nr]&&grid[nr][nc];
-    if(_armed&&(ls==='S'||ls==='v')&&exits[curKey]!=null&&movementAllowed){_armed=false;handleCheck(true);}
-    else if(opts.onMove&&!typing&&movementAllowed){opts.onMove(pos);}
+    if(changed){
+      if(typeof playMoveBlip==='function'&&sp>0.2)playMoveBlip();
+      var ls=grid[nr]&&grid[nr][nc];
+      if(_armed&&(ls==='S'||ls==='v')&&exits[curKey]!=null&&movementAllowed){_armed=false;handleCheck(true);}
+      else if(opts.onMove&&!typing&&movementAllowed){opts.onMove(pos);}
+    }
   }
   requestAnimationFrame(fmFrame);
 })();
 }else{
 arrowHandler=handleMove;swipeHandler=handleMove;checkFn=handleCheck;
 if(!IS_MOBILE){(async function typedLoop(){while(true){const raw=(await ask()).trim();if(arrowHandler==null)return;if(raw==='save'){showSaveCode();continue;}if(raw==='inv'||raw==='inventory'){showInv();continue;}if(raw==='check'||raw==='c'){await handleCheck();if(arrowHandler==null)return;continue;}if(raw==='monie'&&state.roomId===10){state.money=Math.min(1023,state.money+250);await typeLine('"$250 appears in your wallet. No questions asked."','sys');showStatus();continue;}if(raw==='')continue;await typeLine('"W/S forward/back, A/D turn, Q/E strafe, C check. Type INV/SAVE."','err');}})();}
-}}).then(function(code){exitNavMode();return code;});}let cityInterval=null;let cityEl=null;function buildCityData(W,H){
+}}).then(function(code){if(!opts.seamless)exitNavMode();return code;});}let cityInterval=null;let cityEl=null;function buildCityData(W,H){
   var rng=function(a,b){return Math.floor(Math.random()*(b-a+1))+a;};
   var stars=[];
   for(var i=0;i<120;i++){

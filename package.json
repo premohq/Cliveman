@@ -1,4 +1,14 @@
 {
+  "name": "cliveman",
+  "version": "2.0.20",
+  "private": true,
+  "description": "Developer source for the Cliveman browser detective adventure",
+  "scripts": {
+    "test": "npm run test:core && npm run test:factory",
+    "test:core": "node tests/test_package_integrity.js && node tests/test_dialogue_parsing.js && node tests/test_consistency.js && node tests/test_drive_city.js && node tests/test_drive_minimap_runtime.js && node tests/test_audio_bus.js && node tests/test_presentation.js && node tests/test_presentation_regress.js && node tests/validate_boot.js",
+    "test:factory": "node tests/test_factory_layered_nav.js && node tests/test_factory_layout_identity.js && node tests/test_factory_stability.js && node tests/test_factory_tower.js && node tests/test_factory_external_stair_world.js && node tests/test_factory_world_geometry_safety.js",
+    "test:browser": "node tests/test_lazy_boot.js"
+  },
   "devDependencies": {
     "acorn": "^8.17.0",
     "acorn-walk": "^8.3.5",

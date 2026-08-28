@@ -100,6 +100,9 @@ if(t.includes('crime')||t.includes('collapsed'))return RC_THEMES.crime;
 if(t.includes('dudley'))return RC_THEMES.street;
 return RC_THEMES.default;}
 const TEX_SIZE=64;
+/* Walls use a larger source than floors/ceilings. 128px stays power-of-two for
+   fast column sampling, but removes the smeared 64px look in WebGL nav mode. */
+const WALL_TEX_SIZE=128;
 /* view-bob peak amplitude, in buffer pixels (scaled to canvas height at render
    time). Kept subtle so it reads as a footstep sway, not nausea. */
 const BOB_AMOUNT=5;
@@ -113,7 +116,8 @@ const gg=Math.max(0,Math.min(255,Math.floor(parseInt(hex.slice(3,5),16)*mult)));
 const bb=Math.max(0,Math.min(255,Math.floor(parseInt(hex.slice(5,7),16)*mult)));
 return 'rgb('+rr+','+gg+','+bb+')';}
 function _addTexNoise(ctx,amount){
-const img=ctx.getImageData(0,0,TEX_SIZE,TEX_SIZE);const d=img.data;
+const tw=ctx.canvas.width,th=ctx.canvas.height;
+const img=ctx.getImageData(0,0,tw,th);const d=img.data;
 for(let i=0;i<d.length;i+=4){const n=(Math.random()-0.5)*amount;
 d[i]=Math.max(0,Math.min(255,d[i]+n));d[i+1]=Math.max(0,Math.min(255,d[i+1]+n));d[i+2]=Math.max(0,Math.min(255,d[i+2]+n));}
 ctx.putImageData(img,0,0);}
@@ -195,11 +199,15 @@ ctx.fillStyle='#ffb000';ctx.font='bold 15px monospace';ctx.textAlign='center';ct
 ctx.fillText(up?'\u25B2':'\u25BC', ox+ow/2, oy+9);
 _texCache[key]=c;return c;
 }
-function getWallTex(type,baseColor){
-const key=type+'_'+baseColor;
+function getWallTex(type,baseColor,variant){
+variant=(variant|0)&3;
+const key=type+'_'+baseColor+'_v'+variant;
 if(_texCache[key])return _texCache[key];
-const c=document.createElement('canvas');c.width=TEX_SIZE;c.height=TEX_SIZE;
+const c=document.createElement('canvas');c.width=WALL_TEX_SIZE;c.height=WALL_TEX_SIZE;
 const ctx=c.getContext('2d');
+/* Existing material designs use a compact 64-unit coordinate system. Draw them
+   at 2x resolution, then add sub-pixel grime/detail in physical pixels below. */
+const wallScale=WALL_TEX_SIZE/TEX_SIZE;ctx.scale(wallScale,wallScale);
 ctx.fillStyle=baseColor;ctx.fillRect(0,0,TEX_SIZE,TEX_SIZE);
 const r=parseInt(baseColor.slice(1,3),16),g=parseInt(baseColor.slice(3,5),16),b=parseInt(baseColor.slice(5,7),16);
 if(type==='brick'){
@@ -353,6 +361,44 @@ ctx.fillStyle='rgba(0,0,0,0.75)';ctx.beginPath();ctx.arc(bx,by,1.6,0,Math.PI*2);
 ctx.fillStyle=_shadeHex(baseColor,1.35);ctx.beginPath();ctx.arc(bx-0.3,by-0.3,1,0,Math.PI*2);ctx.fill();}
 _addTexNoise(ctx,14);
 }
+/* Large-scale age variation breaks the obvious one-tile wallpaper effect.
+   The four cached variants share the same material language but differ in
+   damp streaks, scuffs and cracks, so adjacent walls no longer clone each other. */
+ctx.setTransform(1,0,0,1,0,0);
+(function addWallAge(){
+  const W=WALL_TEX_SIZE,H=WALL_TEX_SIZE;
+  const age=((variant*37+type.length*11)&31)/31;
+  /* ceiling soot and floor-line dirt anchor the texture in the room */
+  let top=ctx.createLinearGradient(0,0,0,H*0.23);
+  top.addColorStop(0,'rgba(0,0,0,'+(0.18+age*0.08)+')');top.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=top;ctx.fillRect(0,0,W,H*0.25);
+  let low=ctx.createLinearGradient(0,H*0.68,0,H);
+  low.addColorStop(0,'rgba(0,0,0,0)');low.addColorStop(1,'rgba(0,0,0,'+(0.28+age*0.12)+')');
+  ctx.fillStyle=low;ctx.fillRect(0,H*0.65,W,H*0.35);
+  /* deterministic-looking damp runs and hand-height scuffs */
+  for(let i=0;i<3;i++){
+    const x=((variant*29+i*43+type.length*7)%113)+6;
+    const y=8+((variant*17+i*23)%34);
+    const len=30+((variant*13+i*19)%48);
+    const grd=ctx.createLinearGradient(x,y,x,y+len);
+    grd.addColorStop(0,'rgba(0,0,0,0.20)');grd.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=grd;ctx.fillRect(x,y,1+(i&1),len);
+  }
+  if(type==='metal'){
+    ctx.strokeStyle='rgba(225,235,210,0.13)';ctx.lineWidth=1;
+    for(let i=0;i<5;i++){const y=18+((variant*31+i*21)%92);ctx.beginPath();ctx.moveTo(7,y);ctx.lineTo(28+((variant+i)*17)%89,y-2);ctx.stroke();}
+  }else{
+    ctx.strokeStyle='rgba(0,0,0,0.40)';ctx.lineWidth=1;
+    const x=17+variant*27,y=24+((variant*19)%42);
+    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+7,y+10);ctx.lineTo(x+3,y+19);ctx.lineTo(x+13,y+31);ctx.stroke();
+    ctx.strokeStyle='rgba(220,215,180,0.08)';ctx.beginPath();ctx.moveTo(x+1,y);ctx.lineTo(x+8,y+10);ctx.stroke();
+  }
+  /* subtle side-edge occlusion makes each block read as a solid wall plane */
+  const edge=ctx.createLinearGradient(0,0,W,0);
+  edge.addColorStop(0,'rgba(0,0,0,0.18)');edge.addColorStop(0.06,'rgba(0,0,0,0)');
+  edge.addColorStop(0.94,'rgba(0,0,0,0)');edge.addColorStop(1,'rgba(0,0,0,0.16)');
+  ctx.fillStyle=edge;ctx.fillRect(0,0,W,H);
+})();
 _texCache[key]=c;return c;}
 /* Memoised: both callers sit inside the per-frame render path and only ever
    read the triple, so re-parsing three hex pairs and allocating a fresh
@@ -842,21 +888,23 @@ const drawH=fullH*hh.height;
 const baseY=halfH+fullH/2;/* floor-contact line for this distance */
 const wallTop=baseY-drawH;/* low walls rise from the floor, cut off at top */
 const wallColor=theme[wallDirs[hh.hitSide]];
-const tex=getWallTex(theme.wallTex,wallColor);
+const wallVariant=((hh.mapX*13+hh.mapY*7+hh.hitSide*3)&3);
+const tex=getWallTex(theme.wallTex,wallColor,wallVariant);
+const wallTexSize=tex.width||TEX_SIZE;
 /* Exact texture X coordinate via DDA formula */
 let wallHitPos;
 if(hh.sideAxis===0){wallHitPos=py+hh.dist*sin;}
 else{wallHitPos=px+hh.dist*cos;}
 wallHitPos-=Math.floor(wallHitPos);
-let texX=Math.floor(wallHitPos*TEX_SIZE);
+let texX=Math.floor(wallHitPos*wallTexSize);
 /* Flip texture on certain faces so it "reads" consistently around the cell */
-if(hh.sideAxis===0&&hh.stepX>0)texX=TEX_SIZE-texX-1;
-if(hh.sideAxis===1&&hh.stepY<0)texX=TEX_SIZE-texX-1;
-if(texX<0)texX=0;else if(texX>=TEX_SIZE)texX=TEX_SIZE-1;
+if(hh.sideAxis===0&&hh.stepX>0)texX=wallTexSize-texX-1;
+if(hh.sideAxis===1&&hh.stepY<0)texX=wallTexSize-texX-1;
+if(texX<0)texX=0;else if(texX>=wallTexSize)texX=wallTexSize-1;
 /* sample the BOTTOM `height` slice of the texture so a low wall's texels are
    the same size as a full wall's (the wall sits on the floor, cut off up top) */
-const srcY=TEX_SIZE*(1-hh.height);
-const srcH=TEX_SIZE*hh.height;
+const srcY=wallTexSize*(1-hh.height);
+const srcH=wallTexSize*hh.height;
 ctx.drawImage(tex,texX,srcY,1,srcH,screenX,wallTop,drawW,drawH);
 /* DOOR-ON-WALL: if the floor cell directly in front of this wall face is a
    door tile (D / E / numbered apartment door), paint the door texture onto
@@ -875,10 +923,14 @@ const _wallSide=(hh.sideAxis===0)?(hh.stepX>0?'E':'W'):(hh.stepY>0?'S':'N');
 if(_wallSide===rcDoorMountSide(grid,_adjR,_adjC)){
 if(_isDoor){
 const _dtex=getDoorTex(wallColor,_isDoor.label);
-ctx.drawImage(_dtex,texX,srcY,1,srcH,screenX,wallTop,drawW,drawH);
+const _ds=_dtex.width||TEX_SIZE;let _dx=Math.floor(wallHitPos*_ds);
+if(hh.sideAxis===0&&hh.stepX>0)_dx=_ds-_dx-1;if(hh.sideAxis===1&&hh.stepY<0)_dx=_ds-_dx-1;
+ctx.drawImage(_dtex,_dx,_ds*(1-hh.height),1,_ds*hh.height,screenX,wallTop,drawW,drawH);
 }else{
 const _stex=getStairTex(wallColor,_adjSym==='v'?'down':'up');
-ctx.drawImage(_stex,texX,srcY,1,srcH,screenX,wallTop,drawW,drawH);
+const _ss=_stex.width||TEX_SIZE;let _sx=Math.floor(wallHitPos*_ss);
+if(hh.sideAxis===0&&hh.stepX>0)_sx=_ss-_sx-1;if(hh.sideAxis===1&&hh.stepY<0)_sx=_ss-_sx-1;
+ctx.drawImage(_stex,_sx,_ss*(1-hh.height),1,_ss*hh.height,screenX,wallTop,drawW,drawH);
 }
 }
 }
@@ -1319,94 +1371,95 @@ function rcRenderSector(canvas,grid,px,py,angle,theme,bob){
    (ch1.js) can attach its own events/exits without hard-coding grid offsets,
    and ready-made `furniture` / `itemArt` set-dressing. */
 function buildFactoryTower(){
-  const STORY=0.9;                       /* vertical gain per floor           */
-  const IW=5;                            /* interior width (cols 1..5)        */
-  const WCOL=IW+2;                       /* total cols incl. both side walls  */
-  const deckH=f=>(f-1)*STORY;            /* floor 1 -> 0.0 ... floor 5 -> 3.6 */
+  const STORY=0.9;
+  const STEP_MAX=0.30;                  /* deliberately below engine max 0.34 */
+  const IW=5, WCOL=IW+2;
+  const deckH=f=>(f-1)*STORY;
+
+  /* Canonical teleport-era room interiors. These strings are copied directly
+     from ch1.js. Non-stair symbols, wall stubs, clues and doors are immutable.
+     Only S/v are interpreted as openings into the physical stair flights. */
+  const sourceLayouts={
+    1:['....S','K.#.I','E....'],
+    2:['....S','D.#I.','v....'],
+    3:['....S','I.B..','v....'],
+    4:['....S','.#K#.','v....'],
+    5:['..D..','v....']
+  };
+
   const grid=[], H=[];
   const push=(g,h)=>{grid.push(g);H.push(h);return grid.length-1;};
-  const wallRow=()=>{const g=[],h=[];for(let c=0;c<WCOL;c++){g.push('#');h.push(0);}return push(g,h);};
-  /* deck row from a 5-char pattern ('#' = interior wall stub) at height hh */
-  const row=(pat,hh)=>{const g=['#'],h=[0];for(let i=0;i<IW;i++){const ch=pat[i];
-    if(ch==='#'){g.push('#');h.push(0);}else{g.push(ch);h.push(hh);}}
-    g.push('#');h.push(0);return push(g,h);};
-  /* flight row: treads=[[col,height],...] ascending east->west; rest is wall */
-  const flight=(treads)=>{const g=[],h=[];for(let c=0;c<WCOL;c++){g.push('#');h.push(0);}
-    const idx=push(g,h);
-    for(let i=0;i<treads.length;i++){grid[idx][treads[i][0]]='.';H[idx][treads[i][0]]=treads[i][1];}
-    return idx;};
+  const wallRow=()=>push(Array(WCOL).fill('#'),Array(WCOL).fill(0));
+  const deckRow=(pattern,height)=>{
+    const g=['#'],h=[0];
+    for(const ch of pattern){g.push(ch);h.push(ch==='#'?0:height);}
+    g.push('#');h.push(0);
+    return push(g,h);
+  };
+  const stairRow=(treads)=>{
+    const g=Array(WCOL).fill('#'),h=Array(WCOL).fill(0),idx=push(g,h);
+    for(const [col,height] of treads){grid[idx][col]='.';H[idx][col]=height;}
+    return idx;
+  };
 
-  const landing={};                      /* floor -> [rowA,...] (north->south)*/
+  const landing={};
+  wallRow();
 
-  wallRow();                                              /* roof cap         */
-  /* ---- FLOOR 5 (classic 2x4, flipped so the stair edge faces south) ------ */
-  const f5n=row('...D#',deckH(5));       /* D = ROOF ACCESS on the north cap  */
-  const f5s=row('..#.#',deckH(5));       /* wall stub; arrive at west col 1   */
-  landing[5]=[f5n,f5s];
-  /* flight F4 -> F5: three 0.3u rises, dep. F4 NE (col 3), arr. F5 SW (col 1)*/
-  flight([[1,deckH(5)],[2,deckH(4)+0.6],[3,deckH(4)+0.3]]);
-  /* ---- FLOOR 4 (classic 3x3, dark little room; east columns walled) ------ */
-  const f4n=row('...##',deckH(4));       /* stair opening at col 3 (east edge)*/
-  const f4m=row('.#.##',deckH(4));       /* centre wall stub                  */
-  const f4s=row('.K.##',deckH(4));       /* K = the shadowy suspect           */
-  landing[4]=[f4n,f4m,f4s];
-  /* flight F3 -> F4: five 0.15u rises across the full width */
-  flight([[1,deckH(3)+0.75],[2,deckH(3)+0.60],[3,deckH(3)+0.45],[4,deckH(3)+0.30],[5,deckH(3)+0.15]]);
-  /* ---- FLOOR 3 (classic 3x5: bystander + rat poison, east wall stub) ----- */
-  const f3n=row('.....',deckH(3));       /* stair opening at col 5            */
-  const f3m=row('..B#.',deckH(3));       /* B = bystander                     */
-  const f3s=row('I..#.',deckH(3));       /* I = rat poison in the west nook   */
-  landing[3]=[f3n,f3m,f3s];
-  /* flight F2 -> F3: four 0.18u rises, dep. col 5, arr. col 2 */
-  flight([[2,deckH(2)+0.72],[3,deckH(2)+0.54],[4,deckH(2)+0.36],[5,deckH(2)+0.18]]);
-  /* ---- FLOOR 2 (classic 3x5: locked door + dropped badge, centre stub) --- */
-  const f2n=row('.....',deckH(2));
-  const f2m=row('..#..',deckH(2));
-  const f2s=row('D.#I.',deckH(2));       /* D = locked door, I = badge        */
-  landing[2]=[f2n,f2m,f2s];
-  /* flight F1 -> F2: four 0.18u rises, dep. col 5, arr. col 2 */
-  flight([[2,deckH(1)+0.72],[3,deckH(1)+0.54],[4,deckH(1)+0.36],[5,deckH(1)+0.18]]);
-  /* ---- FLOOR 1 (classic 3x5: frightened worker + mop, centre stub) ------- */
-  const f1n=row('..#..',deckH(1));       /* stair opening at col 5            */
-  const f1m=row('.K#.I',deckH(1));       /* K = worker, I = mop bucket        */
-  const f1s=row('E....',deckH(1));       /* E = street entrance (south cap)   */
-  landing[1]=[f1n,f1m,f1s];
-  wallRow();                                              /* bottom cap       */
+  /* Build top-down because the navigation grid is a single unwrapped vertical
+     section. Each floor remains an exact local copy of its old room; the rows
+     between floors are dedicated stairwell space, not borrowed room space. */
+  landing[5]=sourceLayouts[5].map(p=>deckRow(p,deckH(5)));
+  stairRow([[1,deckH(5)],[2,deckH(4)+0.60],[3,deckH(4)+0.30]]);
+
+  landing[4]=sourceLayouts[4].map(p=>deckRow(p,deckH(4)));
+  stairRow([[1,deckH(3)+0.75],[2,deckH(3)+0.60],[3,deckH(3)+0.45],
+            [4,deckH(3)+0.30],[5,deckH(3)+0.15]]);
+
+  landing[3]=sourceLayouts[3].map(p=>deckRow(p,deckH(3)));
+  stairRow([[2,deckH(2)+0.72],[3,deckH(2)+0.54],[4,deckH(2)+0.36],
+            [5,deckH(2)+0.18]]);
+
+  landing[2]=sourceLayouts[2].map(p=>deckRow(p,deckH(2)));
+  stairRow([[2,deckH(1)+0.72],[3,deckH(1)+0.54],[4,deckH(1)+0.36],
+            [5,deckH(1)+0.18]]);
+
+  landing[1]=sourceLayouts[1].map(p=>deckRow(p,deckH(1)));
+  wallRow();
 
   grid._floorH=H;
-  grid._ceilH=deckH(5)+1.0;              /* open atrium roof above top deck   */
+  grid._ceilH=deckH(5)+1.05;
 
-  /* ---- clue coordinates + set-dressing (matching the classic rooms) ------ */
-  const cells={};
-  cells.f1_worker   =[f1m,2];
-  cells.f1_mop      =[f1m,5];
-  cells.f2_door     =[f2s,1];
-  cells.f2_badge    =[f2s,4];
-  cells.f3_bystander=[f3m,3];
-  cells.f3_poison   =[f3s,1];
-  cells.f4_suspect  =[f4s,2];
-  cells.roof        =[f5n,4];
-  const furniture={}, itemArt={};
-  furniture[f1n+',1']='mayoVat'; furniture[f1n+',2']='mayoVat'; furniture[f1n+',4']='crate';
-  furniture[f2n+',3']='mayoVat'; furniture[f2n+',4']='mayoVat'; furniture[f2s+',5']='barrel';
-  furniture[f3n+',3']='mayoVat'; furniture[f3n+',4']='mayoVat'; furniture[f3s+',5']='crate';
-  furniture[f4n+',1']='mayoVat'; furniture[f4s+',3']='barrel';
-  furniture[f5s+',4']='mayoVat'; furniture[f5s+',2']='crate';
-  itemArt[f1m+',5']='mopBucket';
-  itemArt[f2s+',4']='badge';
-  itemArt[f3s+',1']='ratPoison';
+  const at=(floor,localRow,col)=>[landing[floor][localRow],col];
+  const cells={
+    f1_worker:at(1,1,1), f1_mop:at(1,1,5),
+    f2_door:at(2,1,1),   f2_badge:at(2,1,4),
+    f3_poison:at(3,1,1), f3_bystander:at(3,1,3),
+    f4_suspect:at(4,1,3),roof:at(5,0,3)
+  };
+
+  /* Dressing coordinates are likewise the exact teleport-era local coords. */
+  const furniture={},itemArt={};
+  const put=(map,f,r,c,value)=>{map[landing[f][r]+','+c]=value;};
+  put(furniture,1,0,1,'mayoVat'); put(furniture,1,0,2,'mayoVat'); put(furniture,1,2,4,'crate');
+  put(furniture,2,0,1,'mayoVat'); put(furniture,2,0,2,'mayoVat'); put(furniture,2,2,5,'barrel');
+  put(furniture,3,0,2,'mayoVat'); put(furniture,3,0,4,'mayoVat'); put(furniture,3,2,5,'crate');
+  put(furniture,4,0,1,'barrel');  put(furniture,4,0,4,'mayoVat');
+  put(furniture,5,0,1,'crate');   put(furniture,5,0,5,'mayoVat');
+  put(itemArt,1,1,5,'mopBucket'); put(itemArt,2,1,4,'badge'); put(itemArt,3,1,1,'ratPoison');
+
+  /* Development metadata powers exact regression tests and makes accidental
+     future room edits visible immediately. */
+  const localCoords={};
+  for(const f of [1,2,3,4,5]){
+    localCoords[f]={};
+    landing[f].forEach((rowIndex,localRow)=>{
+      for(let col=1;col<=IW;col++)localCoords[f][localRow+','+col]=[rowIndex,col];
+    });
+  }
 
   return {
-    grid:grid,
-    ceilH:grid._ceilH,
-    topDeckH:deckH(5),
-    title:'BIG SMILES MAYO CORP',        /* -> pickTheme() factory theme      */
-    start:[f1s,2],                       /* floor 1, beside the entrance      */
-    probe:[f3m,2],                       /* a mid-tower vantage for smoke tests */
-    startHeading:0,                      /* face north (up the shaft)         */
-    cells:cells,
-    landing:landing,
-    furniture:furniture,
-    itemArt:itemArt
+    grid,ceilH:grid._ceilH,topDeckH:deckH(5),storyHeight:STORY,stepMax:STEP_MAX,
+    title:'BIG SMILES MAYO CORP',start:at(1,2,2),probe:at(3,1,2),startHeading:0,
+    cells,landing,furniture,itemArt,sourceLayouts,localCoords
   };
 }

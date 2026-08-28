@@ -64,10 +64,31 @@ function imgDoc(src){
     + '<rect width="640" height="360" fill="url(#scScanI)" opacity="0.5"/>'
     + '</svg>';
 }
-/* scene key -> raster asset; takes precedence over SCENE_ART_DEFS in set() */
+/* scene key -> raster asset; takes precedence over SCENE_ART_DEFS in set().
+   These are heavily-compressed 320x180-ish story moments so the CRT shell can
+   keep the retro/pixelated presentation without the old placeholder-only feel. */
 var SCENE_IMG_DEFS={
   dream:'assets/scenes/dream.jpg',
-  collision:'assets/scenes/collision.jpg'
+  collision:'assets/scenes/collision.jpg',
+  apartment:'assets/scenes/apartment.jpg',
+  factory:'assets/scenes/factory.jpg',
+  rooftop:'assets/scenes/rooftop.jpg',
+  ruins:'assets/scenes/ruins.jpg',
+  garage:'assets/scenes/garage.jpg',
+  city:'assets/scenes/city.jpg',
+  tavern:'assets/scenes/city.jpg',
+  track:'assets/scenes/city.jpg',
+  arcade:'assets/scenes/city.jpg',
+  street:'assets/scenes/city.jpg',
+  diner:'assets/scenes/diner.jpg',
+  arrest:'assets/scenes/arrest.jpg',
+  court:'assets/scenes/court.jpg',
+  cell:'assets/scenes/cell.jpg',
+  sunrise:'assets/scenes/sunrise.jpg',
+  'clemons-neutral':'assets/interrogations/clemons-neutral.jpg',
+  'clemons-defensive':'assets/interrogations/clemons-defensive.jpg',
+  'clemons-smug':'assets/interrogations/clemons-smug.jpg',
+  'clemons-cornered':'assets/interrogations/clemons-cornered.jpg'
 };
 /* helpers */
 function rainLines(n,seed){
@@ -502,16 +523,20 @@ function hint(title){
   return null;
 }
 
-var _scene=null,_char=null,_curScene='';
+var _scene=null,_char=null,_panel=null,_curScene='';
 
 function _root(){return document.getElementById('storyArt');}
+function _panelHtml(src){
+  return '<div class="story-panel-frame"><img class="story-panel-img" src="'+src+'" alt=""/><div class="story-panel-scan"></div></div>';
+}
 function _ensure(){
   var r=_root();if(!r)return null;
-  if(!_scene||!_scene.isConnected){
+  if(!_scene||!_scene.isConnected||!_panel||!_panel.isConnected){
     r.innerHTML='';
     _scene=document.createElement('div');_scene.className='story-scene';
     _char=document.createElement('div');_char.className='story-char';
-    r.appendChild(_scene);r.appendChild(_char);
+    _panel=document.createElement('div');_panel.className='story-panel';
+    r.appendChild(_scene);r.appendChild(_char);r.appendChild(_panel);
   }
   return r;
 }
@@ -529,6 +554,7 @@ var STORYART={
        call site sets the scene first and the figure second, so this never
        eats a figure that was just placed. */
     STORYART.clearChar();
+    STORYART.clearPanel();
     _scene.innerHTML=SCENE_IMG_DEFS[key]?imgDoc(SCENE_IMG_DEFS[key]):SCENE_ART_DEFS[key];
     _scene.classList.remove('scene-in');void _scene.offsetWidth;
     _scene.classList.add('scene-in');
@@ -544,7 +570,8 @@ var STORYART={
     if(!_ensure())return null;
     var DEFS=(typeof CHAR_ART_DEFS!=='undefined')?CHAR_ART_DEFS:null;
     if(!DEFS)return null;
-    _char.innerHTML=DEFS[kind]||DEFS.normal;
+    var svg=DEFS[kind];if(!svg)return null;
+    _char.innerHTML=svg;
     _char.className='story-char';
     _char.classList.remove('char-in');void _char.offsetWidth;
     _char.classList.add('char-in');
@@ -553,7 +580,19 @@ var STORYART={
     return _char;
   },
   clearChar:function(){if(_char){_char.innerHTML='';_char.className='story-char';}},
-  clear:function(){_curScene='';if(_scene)_scene.innerHTML='';STORYART.clearChar();}
+  panel:function(key,fx){
+    if(!_ensure())return null;
+    var src=SCENE_IMG_DEFS[key];if(!src)return null;
+    _panel.innerHTML=_panelHtml(src);
+    _panel.className='story-panel';
+    _panel.classList.remove('panel-in');void _panel.offsetWidth;
+    _panel.classList.add('panel-in');
+    if(fx)_panel.classList.add(fx);
+    if(typeof playMoveBlip==='function'){try{playMoveBlip();}catch(e){}}
+    return _panel;
+  },
+  clearPanel:function(){if(_panel){_panel.innerHTML='';_panel.className='story-panel';}},
+  clear:function(){_curScene='';if(_scene)_scene.innerHTML='';STORYART.clearChar();STORYART.clearPanel();}
 };
 
 window.STORYART=STORYART;
