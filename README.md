@@ -53,7 +53,9 @@ python3 -m http.server 8000
 
 There's also a desktop port in [`godot/`](godot/), built in Godot 4.7 with GDScript. It's the whole game: all three chapters, the drive, the minigames, the secret ending, all eight languages, saves, and gamepad support.
 
-To run it, install [Godot 4.7](https://godotengine.org/download) and:
+On Windows, grab `Cliveman-<version>-windows.zip` from [Releases](https://github.com/premohq/Cliveman/releases), unzip it and run `Cliveman.exe`.
+
+To run it from source, install [Godot 4.7](https://godotengine.org/download) and:
 
 ```bash
 cd godot
