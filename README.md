@@ -8,28 +8,26 @@
 
 # Cliveman 2.0.20
 
-**It's 3 AM in Dudley. Your wife has been dead for two years, you're working through a bottle of vodka, and the phone won't stop ringing.**
+It's 3 AM. Your wife has been dead two years, you're halfway through a bottle of vodka, and the phone won't stop ringing.
 
-You are **Detective Clive Cliveman**: old, bitter, and a little too quick with a revolver. Your boss, Detective Bevan, can't be bothered to get out of bed, so you've been sent to check on a break-in at **Big Smiles Mayo Corp HQ**, the biggest mayonnaise company in the city. Its sweaty, mustachioed owner, Clemons Dee Tubley, is screaming that someone is inside his building, and his story changes every time he opens his mouth.
+You're Detective Clive Cliveman. Your boss Bevan can't be bothered to get out of bed, so you get sent to check out a break-in at Big Smiles Mayo Corp HQ. The owner, Clemons Dee Tubley, swears someone's in his building, but his story keeps changing.
 
-The break-in is only the beginning. Before the night is over a factory will be rubble, a friend will be dead, and you'll be asking the one question nobody in Dudley is allowed to ask: *who's making the mayonnaise?*
+It goes downhill from there. By the end of the night you're going to want to know who's making the mayonnaise.
 
-Cliveman is a noir detective adventure with dark comedy, played on a green-screen police mainframe terminal.
+It's a noir detective game (mostly a comedy, sometimes not) that plays on an old green-screen police terminal.
 
-## What you do
+## What's in it
 
-- **Explore in first person.** Walk your apartment, a five-storey mayo factory, Bevan's apartment building, and the burnt-out wreck of a crime scene. Look for evidence and poke at things you probably shouldn't.
-- **Drive your Buick** through the streets of Dudley in 3D, following the GPS route on your minimap.
-- **Interrogate suspects.** Figure out when someone is feeding you a line, and choose between calling their **BS** or taking them at their word. Your choices change what happens.
-- **Chase suspects** up stairwells and across rooftops.
-- **Scrape together cash** when your car dies in the middle of town. Play illegal blackjack at the Gumshoe Tavern, bet on the horses at Dudley Mills, or hit the arcade for some Snake.
-- **Find the secret ending.** There's more than one way out of Dudley.
-
-The story plays out as motion-comic scenes with a noir soundtrack, voiced lines, and a lot of terrible decisions.
+- First-person exploring: your apartment, a five-floor mayo factory, Bevan's building, a crime scene
+- Driving your Buick around Dudley with a GPS minimap
+- Interrogations where you decide whether to call BS on people
+- Rooftop chases
+- Blackjack, horse racing and Snake for when your car breaks down and you need cash
+- A secret ending
 
 ## Playing
 
-Play it at **[premohq.github.io/Cliveman](https://premohq.github.io/Cliveman/)**. It runs in any modern desktop or mobile browser, with nothing to install and no account needed.
+Play at [premohq.github.io/Cliveman](https://premohq.github.io/Cliveman/). Works on desktop and mobile browsers, nothing to install.
 
 | Action | Keyboard | Controller / Mobile |
 | --- | --- | --- |
@@ -38,13 +36,13 @@ Play it at **[premohq.github.io/Cliveman](https://premohq.github.io/Cliveman/)**
 | Continue dialogue | `Enter` | Face button / tap |
 | Close menus | `Esc` | Back button |
 
-**Saving:** use *Save & Quit* from the pause menu to download a `.clive` save file. Choose *Load* on the title screen to pick up where you left off.
+Save & Quit from the pause menu downloads a `.clive` save file. Load it from the title screen to continue.
 
-**Languages:** English, Español, Français, Português, Русский, 中文, हिन्दी, العربية.
+Languages: English, Español, Français, Português, Русский, 中文, हिन्दी, العربية.
 
 ## Running it locally
 
-Clone the repo and open `index.html` in a browser. If your browser blocks local files, serve the folder instead:
+Open `index.html` in a browser, or serve the folder:
 
 ```bash
 python3 -m http.server 8000
@@ -69,4 +67,4 @@ npm run test:browser   # browser performance checks (needs Playwright Chromium)
 | `tests/` | Regression and browser tests |
 | `docs/` | Changelog, handoff notes, and validation details |
 
-The full version history lives in [`docs/README.md`](docs/README.md). Implementation notes and the factory-navigation rules are in [`docs/HANDOFF.md`](docs/HANDOFF.md) and [`docs/CLAUDE_IMPORT.md`](docs/CLAUDE_IMPORT.md).
+Changelog is in [`docs/README.md`](docs/README.md), dev notes in [`docs/HANDOFF.md`](docs/HANDOFF.md).
