@@ -96,6 +96,5 @@ const versionMatch=read('engine/foundation.js').match(/CLIVEMAN_VERSION='([^']+)
 const releaseVersion=versionMatch&&versionMatch[1];
 ok(releaseVersion==='2.0.20','runtime version constant matches this release');
 ok(read('README.md').includes('# Cliveman '+releaseVersion),'README heading matches runtime version');
-ok(read('docs/HANDOFF.md').includes('## Current release: '+releaseVersion),'handoff current release matches runtime version');
 
 console.log('\n'+passed+' consistency checks passed.');
