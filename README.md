@@ -65,6 +65,4 @@ npm run test:browser   # browser performance checks (needs Playwright Chromium)
 | `minigame/` | The Buick city-driving game (Three.js) |
 | `assets/` | Logo, scene art, interrogation panels, audio |
 | `tests/` | Regression and browser tests |
-| `docs/` | Changelog, handoff notes, and validation details |
-
-Changelog is in [`docs/README.md`](docs/README.md), dev notes in [`docs/HANDOFF.md`](docs/HANDOFF.md).
+| `docs/` | Validation notes |
