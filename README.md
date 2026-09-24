@@ -49,6 +49,26 @@ python3 -m http.server 8000
 # then open http://localhost:8000
 ```
 
+## Desktop version (Godot)
+
+There's also a desktop port in [`godot/`](godot/), built in Godot 4.7 with GDScript. It's the whole game: all three chapters, the drive, the minigames, the secret ending, all eight languages, saves, and gamepad support.
+
+To run it, install [Godot 4.7](https://godotengine.org/download) and:
+
+```bash
+cd godot
+godot --path . --import   # first time only
+godot --path .
+```
+
+A few things work differently from the browser version:
+
+- Saves go into the game's own saves folder and show up on the load screen. You can still import a `.clive` file from the browser version.
+- The gamepad moves Clive around in rooms.
+- No touch controls, it's desktop only.
+
+More details are in [`godot/README.md`](godot/README.md).
+
 ## For developers
 
 ```bash
@@ -65,4 +85,5 @@ npm run test:browser   # browser performance checks (needs Playwright Chromium)
 | `minigame/` | The Buick city-driving game (Three.js) |
 | `assets/` | Logo, scene art, interrogation panels, audio |
 | `tests/` | Regression and browser tests |
+| `godot/` | Godot desktop port |
 | `docs/` | Validation notes |
